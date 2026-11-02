@@ -1,8 +1,8 @@
-"""migracion
+"""crear tablas iniciales
 
-Revision ID: 11404e1c6921
+Revision ID: fb8eaccb8720
 Revises: 
-Create Date: 2026-05-25 11:57:50.092246
+Create Date: 2026-10-31 09:26:15.497067
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '11404e1c6921'
+revision: str = 'fb8eaccb8720'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -31,22 +31,32 @@ def upgrade() -> None:
     )
     op.create_table('menu_days',
     sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('fecha', sa.Date(), nullable=False),
-    sa.Column('activo', sa.Boolean(), server_default='true', nullable=False),
-    sa.Column('notas', sa.String(), nullable=True),
+    sa.Column('date', sa.Date(), nullable=False),
+    sa.Column('is_active', sa.Boolean(), server_default='true', nullable=False),
+    sa.Column('notes', sa.String(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('is_deleted', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('fecha')
+    sa.UniqueConstraint('date')
+    )
+    op.create_table('permissions',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('code', sa.String(), nullable=False),
+    sa.Column('description', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('is_deleted', sa.Boolean(), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('code')
     )
     op.create_table('product_types',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
     sa.Column('code', sa.String(), nullable=False),
-    sa.Column('tiene_variantes', sa.Boolean(), server_default='false', nullable=False),
-    sa.Column('es_menu_item', sa.Boolean(), server_default='false', nullable=False),
-    sa.Column('descuenta_stock', sa.Boolean(), server_default='false', nullable=False),
+    sa.Column('has_variants', sa.Boolean(), server_default='false', nullable=False),
+    sa.Column('is_menu_item', sa.Boolean(), server_default='false', nullable=False),
+    sa.Column('deducts_stock', sa.Boolean(), server_default='false', nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('is_deleted', sa.Boolean(), nullable=False),
@@ -56,22 +66,24 @@ def upgrade() -> None:
     op.create_table('roles',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
+    sa.Column('code', sa.String(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('is_deleted', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('code'),
     sa.UniqueConstraint('name')
     )
     op.create_table('tables',
     sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('numero', sa.Integer(), nullable=False),
-    sa.Column('capacidad', sa.Integer(), nullable=False),
-    sa.Column('estado', sa.String(length=20), nullable=False),
+    sa.Column('number', sa.Integer(), nullable=False),
+    sa.Column('capacity', sa.Integer(), nullable=False),
+    sa.Column('status', sa.String(length=20), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('is_deleted', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('numero')
+    sa.UniqueConstraint('number')
     )
     op.create_table('users',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -92,10 +104,11 @@ def upgrade() -> None:
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('table_id', sa.UUID(), nullable=True),
-    sa.Column('cliente_nombre', sa.String(), nullable=True),
-    sa.Column('estado', sa.String(length=20), nullable=False),
+    sa.Column('customer_name', sa.String(), nullable=True),
+    sa.Column('status', sa.String(length=20), nullable=False),
     sa.Column('total', sa.Numeric(precision=12, scale=2), nullable=False),
-    sa.Column('notas_group', sa.String(), nullable=True),
+    sa.Column('notes_group', sa.String(), nullable=True),
+    sa.Column('closed_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('is_deleted', sa.Boolean(), nullable=False),
@@ -106,12 +119,11 @@ def upgrade() -> None:
     op.create_table('products',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
-    sa.Column('price', sa.Numeric(precision=12, scale=2), nullable=False),
     sa.Column('cost_price', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('sale_price', sa.Numeric(precision=12, scale=2), nullable=False),
     sa.Column('image_url', sa.String(), nullable=True),
     sa.Column('is_available', sa.Boolean(), server_default='true', nullable=False),
-    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), server_default='true', nullable=False),
     sa.Column('stock', sa.Integer(), nullable=True),
     sa.Column('type_id', sa.UUID(), nullable=True),
     sa.Column('category_id', sa.UUID(), nullable=True),
@@ -121,6 +133,28 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['category_id'], ['categories.id'], ),
     sa.ForeignKeyConstraint(['type_id'], ['product_types.id'], ),
     sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('role_permissions',
+    sa.Column('role_id', sa.UUID(), nullable=False),
+    sa.Column('permission_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['permission_id'], ['permissions.id'], ),
+    sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
+    sa.PrimaryKeyConstraint('role_id', 'permission_id')
+    )
+    op.create_table('user_permissions',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('user_id', sa.UUID(), nullable=False),
+    sa.Column('permission_id', sa.UUID(), nullable=False),
+    sa.Column('granted_by', sa.UUID(), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('reason', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('is_deleted', sa.Boolean(), nullable=False),
+    sa.ForeignKeyConstraint(['granted_by'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['permission_id'], ['permissions.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id', 'user_id', 'permission_id')
     )
     op.create_table('user_roles',
     sa.Column('user_id', sa.UUID(), nullable=False),
@@ -133,8 +167,8 @@ def upgrade() -> None:
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('menu_day_id', sa.UUID(), nullable=False),
     sa.Column('product_id', sa.UUID(), nullable=False),
-    sa.Column('orden', sa.Integer(), server_default='1', nullable=False),
-    sa.Column('activo', sa.Boolean(), server_default='true', nullable=False),
+    sa.Column('order_num', sa.Integer(), server_default='1', nullable=False),
+    sa.Column('is_active', sa.Boolean(), server_default='true', nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('is_deleted', sa.Boolean(), nullable=False),
@@ -146,10 +180,11 @@ def upgrade() -> None:
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('menu_day_id', sa.UUID(), nullable=False),
     sa.Column('product_id', sa.UUID(), nullable=False),
-    sa.Column('precio_menu', sa.Numeric(precision=12, scale=2), nullable=False),
-    sa.Column('stock_inicio', sa.Integer(), nullable=False),
-    sa.Column('stock_actual', sa.Integer(), nullable=False),
-    sa.Column('orden', sa.Integer(), server_default='1', nullable=False),
+    sa.Column('menu_price', sa.Numeric(precision=12, scale=2), nullable=False),
+    sa.Column('stock_start', sa.Integer(), nullable=False),
+    sa.Column('stock_current', sa.Integer(), nullable=False),
+    sa.Column('order_num', sa.Integer(), server_default='1', nullable=False),
+    sa.Column('is_available', sa.Boolean(), server_default='true', nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('is_deleted', sa.Boolean(), nullable=False),
@@ -160,10 +195,11 @@ def upgrade() -> None:
     op.create_table('orders',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('group_id', sa.UUID(), nullable=False),
-    sa.Column('estado', sa.String(length=20), nullable=False),
-    sa.Column('tipo', sa.String(length=20), nullable=True),
+    sa.Column('status', sa.String(length=20), nullable=False),
+    sa.Column('type', sa.String(length=20), nullable=True),
     sa.Column('total', sa.Numeric(precision=12, scale=2), nullable=False),
-    sa.Column('notas', sa.String(), nullable=True),
+    sa.Column('notes', sa.String(), nullable=True),
+    sa.Column('disposables_qty', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('is_deleted', sa.Boolean(), nullable=False),
@@ -173,24 +209,25 @@ def upgrade() -> None:
     op.create_table('payments',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('group_id', sa.UUID(), nullable=False),
-    sa.Column('metodo', sa.String(), nullable=True),
-    sa.Column('monto', sa.Numeric(precision=12, scale=2), nullable=False),
-    sa.Column('estado', sa.String(length=20), nullable=False),
+    sa.Column('amount', sa.Numeric(precision=12, scale=2), nullable=False),
+    sa.Column('status', sa.String(length=20), nullable=False),
     sa.Column('pagado_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('is_deleted', sa.Boolean(), nullable=False),
     sa.ForeignKeyConstraint(['group_id'], ['order_groups.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('group_id')
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('product_variants',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('product_id', sa.UUID(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
     sa.Column('price', sa.Numeric(precision=12, scale=2), nullable=False),
-    sa.Column('orden', sa.Integer(), server_default='1', nullable=False),
+    sa.Column('orden_num', sa.Integer(), server_default='1', nullable=False),
     sa.Column('is_available', sa.Boolean(), server_default='true', nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('is_deleted', sa.Boolean(), nullable=False),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -201,11 +238,13 @@ def upgrade() -> None:
     sa.Column('variant_id', sa.UUID(), nullable=True),
     sa.Column('menu_slot_id', sa.UUID(), nullable=True),
     sa.Column('parent_item_id', sa.UUID(), nullable=True),
-    sa.Column('tipo_venta', sa.String(length=15), nullable=False),
-    sa.Column('cantidad', sa.Integer(), nullable=False),
-    sa.Column('precio_unitario', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.Column('sale_type', sa.String(length=15), nullable=False),
+    sa.Column('quantity', sa.Integer(), nullable=False),
+    sa.Column('unit_price', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('subtotal', sa.Numeric(precision=10, scale=2), nullable=False),
-    sa.Column('notas', sa.String(), nullable=True),
+    sa.Column('notes', sa.String(), nullable=True),
+    sa.Column('is_free', sa.Boolean(), nullable=False),
+    sa.Column('is_auto', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('is_deleted', sa.Boolean(), nullable=False),
@@ -216,12 +255,25 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['variant_id'], ['product_variants.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('payment_splits',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('payment_id', sa.UUID(), nullable=False),
+    sa.Column('method', sa.String(length=20), nullable=False),
+    sa.Column('amount', sa.Numeric(precision=12, scale=2), nullable=False),
+    sa.Column('reference', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('is_deleted', sa.Boolean(), nullable=False),
+    sa.ForeignKeyConstraint(['payment_id'], ['payments.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_table('payment_splits')
     op.drop_table('order_items')
     op.drop_table('product_variants')
     op.drop_table('payments')
@@ -229,12 +281,15 @@ def downgrade() -> None:
     op.drop_table('menu_day_slots')
     op.drop_table('menu_day_entries')
     op.drop_table('user_roles')
+    op.drop_table('user_permissions')
+    op.drop_table('role_permissions')
     op.drop_table('products')
     op.drop_table('order_groups')
     op.drop_table('users')
     op.drop_table('tables')
     op.drop_table('roles')
     op.drop_table('product_types')
+    op.drop_table('permissions')
     op.drop_table('menu_days')
     op.drop_table('categories')
     # ### end Alembic commands ###

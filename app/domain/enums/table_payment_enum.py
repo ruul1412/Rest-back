@@ -15,3 +15,4 @@ class TableStatus(str, enum.Enum):
     libre     = "libre"
     ocupada   = "ocupada"
     reservada = "reservada"
+    inhabilitada ="inhabilitada"
