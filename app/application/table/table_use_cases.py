@@ -7,6 +7,7 @@ from app.interfaces.schemas.table_schema import (
     TableStatusRequest, TableResponse,
 )
 from app.infrastructure.repositories.table_repository import TableRepository
+from app.core.pagination import build_paginated_response, normalize_pagination
 
 
 def _resp(e) -> TableResponse:
@@ -16,8 +17,11 @@ def _resp(e) -> TableResponse:
 class ListTablesUseCase:
     def __init__(self, repo: TableRepository): self._repo = repo
 
-    def execute(self) -> list[TableResponse]:
-        return [_resp(e) for e in self._repo.get_all()]
+    def execute(self, page: int = 1, page_size: int | None = None) -> dict:
+        page, page_size, skip = normalize_pagination(page, page_size)
+        items = [_resp(e) for e in self._repo.get_all(skip=skip, limit=page_size)]
+        total = self._repo.count()
+        return build_paginated_response(items, total, page, page_size)
 
 
 class CreateTableUseCase:
