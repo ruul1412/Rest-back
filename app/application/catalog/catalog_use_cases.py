@@ -10,6 +10,7 @@ from app.interfaces.schemas.catalog_schema import (
 from app.infrastructure.repositories.catalog_repository import (
     CategoryRepository, ProductRepository, ProductTypeRepository,
 )
+from app.core.pagination import build_paginated_response, normalize_pagination
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -46,8 +47,11 @@ def _prod_resp(e) -> ProductResponse:
 
 class ListCategoriesUseCase:
     def __init__(self, repo: CategoryRepository): self._repo = repo
-    def execute(self) -> list[CategoryResponse]:
-        return [_cat_resp(e) for e in self._repo.get_all()]
+    def execute(self, page: int = 1, page_size: int | None = None) -> dict:
+        page, page_size, skip = normalize_pagination(page, page_size)
+        items = [_cat_resp(e) for e in self._repo.get_all(skip=skip, limit=page_size)]
+        total = self._repo.count()
+        return build_paginated_response(items, total, page, page_size)
 
 
 class CreateCategoryUseCase:
@@ -84,18 +88,26 @@ class DeleteCategoryUseCase:
 
 class ListProductTypesUseCase:
     def __init__(self, repo: ProductTypeRepository): self._repo = repo
-    def execute(self) -> list[ProductTypeResponse]:
-        return [_type_resp(e) for e in self._repo.get_all()]
+    def execute(self, page: int = 1, page_size: int | None = None) -> dict:
+        page, page_size, skip = normalize_pagination(page, page_size)
+        items = [_type_resp(e) for e in self._repo.get_all(skip=skip, limit=page_size)]
+        total = self._repo.count()
+        return build_paginated_response(items, total, page, page_size)
 
 
 # ── Product Use Cases ─────────────────────────────────────────────────────────
 
 class ListProductsUseCase:
     def __init__(self, repo: ProductRepository): self._repo = repo
-    def execute(self, category_id: UUID = None) -> list[ProductResponse]:
+    def execute(self, category_id: UUID = None, page: int = 1, page_size: int | None = None) -> dict:
+        page, page_size, skip = normalize_pagination(page, page_size)
         if category_id:
-            return [_prod_resp(e) for e in self._repo.get_by_category(category_id)]
-        return [_prod_resp(e) for e in self._repo.get_all()]
+            items = [_prod_resp(e) for e in self._repo.get_by_category(category_id, skip=skip, limit=page_size)]
+            total = self._repo.count_by_category(category_id)
+            return build_paginated_response(items, total, page, page_size)
+        items = [_prod_resp(e) for e in self._repo.get_all(skip=skip, limit=page_size)]
+        total = self._repo.count()
+        return build_paginated_response(items, total, page, page_size)
 
 
 class GetProductUseCase:

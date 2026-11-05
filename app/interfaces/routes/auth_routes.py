@@ -10,6 +10,15 @@ from app.domain.user.user_entity import UserEntity
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
+
+def route_message(message: str):
+    def decorator(func):
+        func.response_message = message
+        return func
+    return decorator
+
+
+@route_message("Inicio de sesión correcto")
 @router.post("/login", response_model=TokenResponse)
 def login(
     data: LoginRequest,
@@ -17,6 +26,7 @@ def login(
 ):
     return LoginUseCase(UserRepository(db)).execute(data)
 
+@route_message("Usuario autenticado correctamente")
 @router.get("/me", response_model=MeResponse)
 def me(
     current_user: UserEntity = Depends(get_current_user),
