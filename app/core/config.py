@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # 🔥 usa SOLO UNA fuente de verdad
-    DATABASE_URL: str = "postgresql://postgres:201411@localhost:5432/restaurant_db"
+    DATABASE_URL: str = "postgresql://postgres:201411@localhost:5432/restauranteV1"
 
     SECRET_KEY: str = "supersecretkey"
     ALGORITHM: str = "HS256"

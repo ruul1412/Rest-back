@@ -10,6 +10,7 @@ from app.interfaces.routes.catalog_routes import category_router, product_type_r
 from app.interfaces.routes.table_routes import router as table_routes
 from app.interfaces.routes.menu_routes import router as menu_routes
 from app.interfaces.routes.payment_routes import router as payment_routes
+from app.interfaces.routes.company_routes import router as company_routes
 
 # antiguos
 from app.interfaces.routes.orden_routes import router as order_routes
@@ -62,6 +63,7 @@ app.include_router(menu_routes)
 app.include_router(order_routes)
 app.include_router(payment_routes)
 app.include_router(report_routes)
+app.include_router(company_routes)
 
 # app.include_router(print_routes)
 
