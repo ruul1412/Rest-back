@@ -13,6 +13,7 @@ def _to_entity(m: TableModel) -> TableEntity:
         number=m.number,
         capacity=m.capacity,
         status=m.status,
+        description=m.description
     )
 
 
@@ -23,7 +24,7 @@ class TableRepository:
 
     def get_all(self) -> list[TableEntity]:
         return [_to_entity(m) for m in
-                self._db.query(TableModel).order_by(TableModel.number).all()]
+                self._db.query(TableModel).filter(TableModel.is_deleted == False).order_by(TableModel.number).all()]
 
     def get_by_id(self, table_id: UUID) -> Optional[TableEntity]:
         m = self._db.query(TableModel).filter(TableModel.id == table_id).first()
@@ -35,8 +36,8 @@ class TableRepository:
             q = q.filter(TableModel.id != exclude_id)
         return q.first() is not None
 
-    def create(self, number: int, capacity: int) -> TableEntity:
-        m = TableModel(number=number, capacity=capacity, status="libre")
+    def create(self, number: int, capacity: int, description : str) -> TableEntity:
+        m = TableModel(number=number, capacity=capacity, status="libre", description = description)
         self._db.add(m)
         self._db.flush()
         self._db.refresh(m)
@@ -56,17 +57,30 @@ class TableRepository:
         m = self._db.query(TableModel).filter(TableModel.id == table_id).first()
         if not m:
             return None
+        # m.is_deleted = (status == "inhabilitada")
         m.status = status
         self._db.flush()
         return _to_entity(m)
 
-    def delete(self, table_id: UUID) -> bool:
+    def get_status(self, table_id: UUID):
+        m = self._db.query(TableModel).filter(
+            TableModel.id == table_id
+        ).first()
+
+        return m.status if m else None
+    
+    def delete_table(self, table_id: UUID, status : str) -> bool:
         m = self._db.query(TableModel).filter(TableModel.id == table_id).first()
         if not m:
             return False
-        self._db.delete(m)
+        
+        m.is_deleted = (status == "inhabilitada")
+        m.status = status
         self._db.flush()
         return True
+
+
+    
 
     def is_occupied(self, table_id: UUID) -> bool:
         m = self._db.query(TableModel.status).filter(TableModel.id == table_id).first()

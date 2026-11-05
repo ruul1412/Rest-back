@@ -15,7 +15,8 @@ from app.domain.catalog.catalog_entity import (
 # ── Mappers ───────────────────────────────────────────────────────────────────
 
 def _category_to_entity(m: CategoryModel) -> CategoryEntity:
-    return CategoryEntity(id=m.id, name=m.name)
+    return CategoryEntity(id=m.id, 
+                          name=m.name)
 
 
 def _type_to_entity(m: ProductTypeModel) -> ProductTypeEntity:
@@ -29,9 +30,12 @@ def _type_to_entity(m: ProductTypeModel) -> ProductTypeEntity:
 
 def _variant_to_entity(m: ProductVariantModel) -> ProductVariantEntity:
     return ProductVariantEntity(
-        id=m.id, product_id=m.product_id,
-        name=m.name, price=m.price,
-        orden_num=m.orden_num, is_available=m.is_available,
+        id=m.id, 
+        product_id=m.product_id,
+        name=m.name, 
+        price=m.price,
+        orden_num=m.orden_num, 
+        is_available=m.is_available,
     )
 
 

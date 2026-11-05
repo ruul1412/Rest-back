@@ -2,7 +2,7 @@ from pydantic import BaseModel, field_validator
 from typing import Optional
 from uuid import UUID
 
-TABLE_STATUSES = {"libre", "ocupada", "reservada"}
+TABLE_STATUSES = {"libre", "ocupada", "reservada", "inhabilitada"}
 
 
 # ── Requests ──────────────────────────────────────────────────────────────────
@@ -10,6 +10,7 @@ TABLE_STATUSES = {"libre", "ocupada", "reservada"}
 class TableCreateRequest(BaseModel):
     number:   int
     capacity: int
+    description:  Optional[str]
 
     @field_validator("number", "capacity")
     @classmethod
@@ -22,7 +23,7 @@ class TableCreateRequest(BaseModel):
 class TableUpdateRequest(BaseModel):
     number:   Optional[int] = None
     capacity: Optional[int] = None
-
+    description:  Optional[str]
 
 class TableStatusRequest(BaseModel):
     status: str
@@ -42,3 +43,4 @@ class TableResponse(BaseModel):
     number:   int
     capacity: int
     status:   str
+    description:  Optional[str]
