@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -10,7 +10,7 @@ from app.interfaces.schemas.table_schema import (
 )
 from app.application.table.table_use_cases import (
     ListTablesUseCase, CreateTableUseCase, UpdateTableUseCase,
-    UpdateTableStatusUseCase, DeleteTableUseCase,
+    UpdateTableStatusUseCase, DeleteTableUseCase,TablesListUseCase
 )
 from app.interfaces.dependencies.auth_dependencies import require_roles
 from app.infrastructure.repositories.table_repository import TableRepository
@@ -29,6 +29,16 @@ def _repo(db: Session = Depends(get_db)) -> TableRepository:
 @router.get("", response_model=list[TableResponse], dependencies=[_all_staff])
 def list_tables(repo: TableRepository = Depends(_repo)):
     return ListTablesUseCase(repo).execute()
+
+
+
+@router.get("/config",response_model=list[TableResponse],dependencies=[_all_staff]
+)
+def list_tables(
+    description: str | None = Query(default=None),
+    repo: TableRepository = Depends(_repo)
+):
+    return TablesListUseCase(repo).execute(description)
 
 
 @router.post("", response_model=TableResponse, status_code=201, dependencies=[_admin])

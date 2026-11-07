@@ -24,7 +24,28 @@ class TableRepository:
 
     def get_all(self) -> list[TableEntity]:
         return [_to_entity(m) for m in
-                self._db.query(TableModel).filter(TableModel.is_deleted == False).order_by(TableModel.number).all()]
+                self._db.query(TableModel).filter(TableModel.is_deleted == False)
+                .order_by(TableModel.number)
+                .all()]
+    
+    def get_tables(self, description: str | None = None) -> list[TableEntity]:
+
+        query = self._db.query(TableModel).filter(
+            TableModel.is_deleted.is_(False)
+        )
+
+        if description:
+            query = query.filter(
+                TableModel.description.ilike(f"%{description.strip()}%")
+            )
+
+        return [
+            _to_entity(m)
+            for m in query.order_by(
+                TableModel.description,
+                TableModel.number
+            ).all()
+        ]
 
     def get_by_id(self, table_id: UUID) -> Optional[TableEntity]:
         m = self._db.query(TableModel).filter(TableModel.id == table_id).first()

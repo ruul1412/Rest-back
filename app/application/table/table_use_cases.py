@@ -20,6 +20,16 @@ class ListTablesUseCase:
     def execute(self) -> list[TableResponse]:
         return [_resp(e) for e in self._repo.get_all()]
 
+class TablesListUseCase:
+    def __init__(self, repo: TableRepository):
+        self._repo = repo
+
+    def execute(self, description: str | None = None) -> list[TableResponse]:
+        return [
+            _resp(e)
+            for e in self._repo.get_tables(description)
+        ]
+
 
 class CreateTableUseCase:
     def __init__(self, repo: TableRepository): self._repo = repo
