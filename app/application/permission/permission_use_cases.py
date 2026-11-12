@@ -10,6 +10,7 @@ from app.interfaces.schemas.permission_schema import (
 )
 from app.infrastructure.repositories.permission_repository import PermissionRepository
 from app.infrastructure.repositories.user_repository import UserRepository
+from app.core.pagination import build_paginated_response, normalize_pagination
 
 
 def _to_response(entity) -> PermissionResponse:
@@ -34,8 +35,11 @@ def _to_user_perm_response(entity) -> UserPermissionResponse:
 class ListPermissionsUseCase:
     def __init__(self, repo: PermissionRepository): self._repo = repo
 
-    def execute(self) -> list[PermissionResponse]:
-        return [_to_response(e) for e in self._repo.get_all()]
+    def execute(self, page: int = 1, page_size: int | None = None) -> dict:
+        page, page_size, skip = normalize_pagination(page, page_size)
+        items = [_to_response(e) for e in self._repo.get_all(skip=skip, limit=page_size)]
+        total = self._repo.count()
+        return build_paginated_response(items, total, page, page_size)
 
 
 class GetUserPermissionsUseCase:

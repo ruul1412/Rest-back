@@ -34,8 +34,16 @@ class PermissionRepository:
 
     # ── Lecturas ──────────────────────────────────────────────────────────────
 
-    def get_all(self) -> list[PermissionEntity]:
-        models = self._db.query(PermissionModel).order_by(PermissionModel.code).all()
+    def count(self) -> int:
+        return self._db.query(PermissionModel.id).count()
+
+    def get_all(self, skip: int = 0, limit: int | None = None) -> list[PermissionEntity]:
+        q = self._db.query(PermissionModel).order_by(PermissionModel.code)
+        if skip:
+            q = q.offset(skip)
+        if limit is not None:
+            q = q.limit(limit)
+        models = q.all()
         return [_to_entity(m) for m in models]
 
     def get_by_code(self, code: str) -> Optional[PermissionEntity]:

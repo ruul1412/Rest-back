@@ -21,6 +21,14 @@ from app.domain.user.user_entity import UserEntity
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
+
+def route_message(message: str):
+    def decorator(func):
+        func.response_message = message
+        return func
+    return decorator
+
+
 _admin         = Depends(require_roles(["admin"]))
 _all_staff     = Depends(require_roles(["admin", "mesero", "cajero", "cocina", "bartender"]))
 _create_order  = Depends(require_roles(["admin", "mesero", "bartender"]))
@@ -30,6 +38,7 @@ _close_order   = Depends(require_roles(["admin", "cajero"]))
 
 # ── OrderGroups ───────────────────────────────────────────────────────────────
 
+@route_message("Grupos de pedido obtenidos correctamente")
 @router.get("/groups", response_model=list[OrderGroupResponse], dependencies=[_all_staff])
 def list_groups(
     status: Optional[str] = None,
@@ -39,11 +48,13 @@ def list_groups(
     return ListOrderGroupsUseCase(OrderGroupRepository(db)).execute(status, date)
 
 
+@route_message("Grupo de pedido obtenido correctamente")
 @router.get("/groups/{group_id}", response_model=OrderGroupResponse, dependencies=[_all_staff])
 def get_group(group_id: UUID, db: Session = Depends(get_db)):
     return GetOrderGroupUseCase(OrderGroupRepository(db)).execute(group_id)
 
 
+@route_message("Grupo de pedido creado correctamente")
 @router.post("/groups", response_model=OrderGroupResponse, status_code=201)
 def create_group(
     data: OrderGroupCreateRequest,
@@ -55,6 +66,7 @@ def create_group(
     return result
 
 
+@route_message("Grupo de pedido cerrado correctamente")
 @router.patch("/groups/{group_id}/close", dependencies=[_close_order])
 def close_group(group_id: UUID, db: Session = Depends(get_db)):
     result = CloseOrderGroupUseCase(OrderGroupRepository(db)).execute(group_id)
@@ -62,6 +74,7 @@ def close_group(group_id: UUID, db: Session = Depends(get_db)):
     return result
 
 
+@route_message("Grupo de pedido cancelado correctamente")
 @router.patch("/groups/{group_id}/cancel", dependencies=[_admin])
 def cancel_group(group_id: UUID, db: Session = Depends(get_db)):
     result = CancelOrderGroupUseCase(
@@ -74,11 +87,13 @@ def cancel_group(group_id: UUID, db: Session = Depends(get_db)):
 
 # ── Orders ────────────────────────────────────────────────────────────────────
 
+@route_message("Pedido obtenido correctamente")
 @router.get("/{order_id}", response_model=OrderResponse, dependencies=[_all_staff])
 def get_order(order_id: UUID, db: Session = Depends(get_db)):
     return GetOrderUseCase(OrderRepository(db)).execute(order_id)
 
 
+@route_message("Pedido creado correctamente")
 @router.post("/groups/{group_id}/orders", response_model=OrderResponse, status_code=201)
 def create_order(
     group_id: UUID,
@@ -94,6 +109,7 @@ def create_order(
     return result
 
 
+@route_message("Estado del pedido actualizado correctamente")
 @router.patch("/{order_id}/status", dependencies=[_update_status])
 def update_order_status(
     order_id: UUID,

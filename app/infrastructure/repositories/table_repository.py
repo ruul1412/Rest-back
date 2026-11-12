@@ -22,30 +22,16 @@ class TableRepository:
     def __init__(self, db: Session):
         self._db = db
 
-    def get_all(self) -> list[TableEntity]:
-        return [_to_entity(m) for m in
-                self._db.query(TableModel).filter(TableModel.is_deleted == False)
-                .order_by(TableModel.number)
-                .all()]
-    
-    def get_tables(self, description: str | None = None) -> list[TableEntity]:
+    def count(self) -> int:
+        return self._db.query(TableModel.id).count()
 
-        query = self._db.query(TableModel).filter(
-            TableModel.is_deleted.is_(False)
-        )
-
-        if description:
-            query = query.filter(
-                TableModel.description.ilike(f"%{description.strip()}%")
-            )
-
-        return [
-            _to_entity(m)
-            for m in query.order_by(
-                TableModel.description,
-                TableModel.number
-            ).all()
-        ]
+    def get_all(self, skip: int = 0, limit: int | None = None) -> list[TableEntity]:
+        q = self._db.query(TableModel).order_by(TableModel.number)
+        if skip:
+            q = q.offset(skip)
+        if limit is not None:
+            q = q.limit(limit)
+        return [_to_entity(m) for m in q.all()]
 
     def get_by_id(self, table_id: UUID) -> Optional[TableEntity]:
         m = self._db.query(TableModel).filter(TableModel.id == table_id).first()

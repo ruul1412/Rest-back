@@ -67,9 +67,16 @@ class MenuRepository:
 
     # ── MenuDay ───────────────────────────────────────────────────────────────
 
-    def get_all(self) -> list[MenuDayEntity]:
-        return [_menu_to_entity(m) for m in
-                self._base_query().order_by(MenuDayModel.date.desc()).all()]
+    def count(self) -> int:
+        return self._db.query(MenuDayModel.id).count()
+
+    def get_all(self, skip: int = 0, limit: int | None = None) -> list[MenuDayEntity]:
+        q = self._base_query().order_by(MenuDayModel.date.desc())
+        if skip:
+            q = q.offset(skip)
+        if limit is not None:
+            q = q.limit(limit)
+        return [_menu_to_entity(m) for m in q.all()]
 
     def get_by_id(self, menu_day_id: UUID) -> Optional[MenuDayEntity]:
         m = self._base_query().filter(MenuDayModel.id == menu_day_id).first()

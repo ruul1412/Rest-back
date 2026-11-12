@@ -65,9 +65,16 @@ class CategoryRepository:
     def __init__(self, db: Session):
         self._db = db
 
-    def get_all(self) -> list[CategoryEntity]:
-        return [_category_to_entity(m) for m in
-                self._db.query(CategoryModel).order_by(CategoryModel.name).all()]
+    def count(self) -> int:
+        return self._db.query(CategoryModel.id).count()
+
+    def get_all(self, skip: int = 0, limit: int | None = None) -> list[CategoryEntity]:
+        q = self._db.query(CategoryModel).order_by(CategoryModel.name)
+        if skip:
+            q = q.offset(skip)
+        if limit is not None:
+            q = q.limit(limit)
+        return [_category_to_entity(m) for m in q.all()]
 
     def get_by_id(self, category_id: UUID) -> Optional[CategoryEntity]:
         m = self._db.query(CategoryModel).filter(CategoryModel.id == category_id).first()
@@ -114,9 +121,16 @@ class ProductTypeRepository:
     def __init__(self, db: Session):
         self._db = db
 
-    def get_all(self) -> list[ProductTypeEntity]:
-        return [_type_to_entity(m) for m in
-                self._db.query(ProductTypeModel).order_by(ProductTypeModel.name).all()]
+    def count(self) -> int:
+        return self._db.query(ProductTypeModel.id).count()
+
+    def get_all(self, skip: int = 0, limit: int | None = None) -> list[ProductTypeEntity]:
+        q = self._db.query(ProductTypeModel).order_by(ProductTypeModel.name)
+        if skip:
+            q = q.offset(skip)
+        if limit is not None:
+            q = q.limit(limit)
+        return [_type_to_entity(m) for m in q.all()]
 
     def get_by_id(self, type_id: UUID) -> Optional[ProductTypeEntity]:
         m = self._db.query(ProductTypeModel).filter(ProductTypeModel.id == type_id).first()
@@ -140,22 +154,43 @@ class ProductRepository:
             )
         )
 
-    def get_all(self, only_active: bool = True) -> list[ProductEntity]:
+    def count(self, only_active: bool = True) -> int:
+        q = self._db.query(ProductModel)
+        if only_active:
+            q = q.filter(ProductModel.is_active == True)
+        return q.count()
+
+    def count_by_category(self, category_id: UUID, only_active: bool = True) -> int:
+        q = self._db.query(ProductModel).filter(ProductModel.category_id == category_id)
+        if only_active:
+            q = q.filter(ProductModel.is_active == True)
+        return q.count()
+
+    def get_all(self, only_active: bool = True, skip: int = 0, limit: int | None = None) -> list[ProductEntity]:
         q = self._base_query()
         if only_active:
             q = q.filter(ProductModel.is_active == True)
-        return [_product_to_entity(m) for m in q.order_by(ProductModel.name).all()]
+        q = q.order_by(ProductModel.name)
+        if skip:
+            q = q.offset(skip)
+        if limit is not None:
+            q = q.limit(limit)
+        return [_product_to_entity(m) for m in q.all()]
 
     def get_by_id(self, product_id: UUID) -> Optional[ProductEntity]:
         m = self._base_query().filter(ProductModel.id == product_id).first()
         return _product_to_entity(m) if m else None
 
-    def get_by_category(self, category_id: UUID) -> list[ProductEntity]:
-        return [_product_to_entity(m) for m in
-                self._base_query()
-                .filter(ProductModel.category_id == category_id,
-                        ProductModel.is_active == True)
-                .order_by(ProductModel.name).all()]
+    def get_by_category(self, category_id: UUID, skip: int = 0, limit: int | None = None) -> list[ProductEntity]:
+        q = self._base_query().filter(
+            ProductModel.category_id == category_id,
+            ProductModel.is_active == True,
+        ).order_by(ProductModel.name)
+        if skip:
+            q = q.offset(skip)
+        if limit is not None:
+            q = q.limit(limit)
+        return [_product_to_entity(m) for m in q.all()]
 
     def create(self, **kwargs) -> ProductEntity:
         m = ProductModel(**kwargs)

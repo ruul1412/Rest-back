@@ -63,38 +63,52 @@ from app.application.payment.payment_use_cases import (
 from app.interfaces.dependencies.auth_dependencies import require_roles
 from app.infrastructure.repositories.payment_repository import PaymentRepository
 from app.infrastructure.repositories.order_repository import OrderGroupRepository, OrderRepository
+from app.infrastructure.unit_of_work import UnitOfWork
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
+
+
+def route_message(message: str):
+    def decorator(func):
+        func.response_message = message
+        return func
+    return decorator
+
 
 _admin        = Depends(require_roles(["admin"]))
 _admin_cajero = Depends(require_roles(["admin", "cajero"]))
 
 
+@route_message("Pago obtenido correctamente")
 @router.get("/groups/{group_id}", response_model=PaymentResponse, dependencies=[_admin_cajero])
 def get_payment(group_id: UUID, db: Session = Depends(get_db)):
     return GetPaymentByGroupUseCase(PaymentRepository(db)).execute(group_id)
 
 
+@route_message("Pago procesado correctamente")
 @router.post("/groups/{group_id}", response_model=PaymentResponse, status_code=201, dependencies=[_admin_cajero])
 def process_payment(
     group_id: UUID,
     data: PaymentCreateRequest,
     db: Session = Depends(get_db),
 ):
+    uow = UnitOfWork(db)
     result = ProcessPaymentUseCase(
-        pay_repo=PaymentRepository(db),
-        group_repo=OrderGroupRepository(db),
-        order_repo=OrderRepository(db),
+        pay_repo=uow.payments,
+        group_repo=uow.order_groups,
+        order_repo=uow.orders,
     ).execute(group_id, data)
-    db.commit()
+    uow.commit()
     return result
 
 
+@route_message("Pago cancelado correctamente")
 @router.patch("/groups/{group_id}/cancel", dependencies=[_admin])
 def cancel_payment(group_id: UUID, db: Session = Depends(get_db)):
+    uow = UnitOfWork(db)
     result = CancelPaymentUseCase(
-        pay_repo=PaymentRepository(db),
-        group_repo=OrderGroupRepository(db),
+        pay_repo=uow.payments,
+        group_repo=uow.order_groups,
     ).execute(group_id)
-    db.commit()
+    uow.commit()
     return result

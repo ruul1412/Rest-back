@@ -9,6 +9,7 @@ from app.interfaces.schemas.menu_schema import (
     EntryCreateRequest, EntryUpdateRequest, EntryResponse,
 )
 from app.infrastructure.repositories.menu_repository import MenuRepository
+from app.core.pagination import build_paginated_response, normalize_pagination
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -40,8 +41,11 @@ def _menu_resp(e) -> MenuDayResponse:
 class ListMenuDaysUseCase:
     def __init__(self, repo: MenuRepository): self._repo = repo
 
-    def execute(self) -> list[MenuDayResponse]:
-        return [_menu_resp(e) for e in self._repo.get_all()]
+    def execute(self, page: int = 1, page_size: int | None = None) -> dict:
+        page, page_size, skip = normalize_pagination(page, page_size)
+        items = [_menu_resp(e) for e in self._repo.get_all(skip=skip, limit=page_size)]
+        total = self._repo.count()
+        return build_paginated_response(items, total, page, page_size)
 
 
 class GetMenuDayUseCase:
