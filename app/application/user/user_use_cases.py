@@ -9,6 +9,7 @@ from app.interfaces.schemas.user_schema import (
     UserResponse
 )
 from app.infrastructure.repositories.user_repository import UserRepository
+from app.core.pagination import build_paginated_response, normalize_pagination
 from app.core.security import hash_password
 
 
@@ -47,8 +48,11 @@ class CreateUserUseCase:
 class ListUsersUseCase:
     def __init__(self, repo: UserRepository): self._repo = repo
 
-    def execute(self, skip: int = 0, limit: int = 50) -> list[UserResponse]:
-        return [_to_response(e) for e in self._repo.get_all(skip, limit)]
+    def execute(self, page: int = 1, page_size: int | None = None) -> dict:
+        page, page_size, skip = normalize_pagination(page, page_size)
+        items = [_to_response(e) for e in self._repo.get_all(skip=skip, limit=page_size)]
+        total = self._repo.count()
+        return build_paginated_response(items, total, page, page_size)
 
 
 class GetUserUseCase:

@@ -49,6 +49,9 @@ class UserRepository:
         model = self._base_query().filter(UserModel.id == user_id).first()
         return _to_entity(model) if model else None
  
+    def count(self) -> int:
+        return self._db.query(UserModel.id).count()
+
     def get_all(self, skip: int = 0, limit: int = 50) -> list[UserEntity]:
         models = (
             self._base_query()

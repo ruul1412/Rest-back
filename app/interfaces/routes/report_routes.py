@@ -22,6 +22,14 @@ from app.infrastructure.repositories.report_repository import ReportRepository
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
+
+def route_message(message: str):
+    def decorator(func):
+        func.response_message = message
+        return func
+    return decorator
+
+
 _admin_cajero = Depends(require_roles(["admin", "cajero"]))
 
 
@@ -29,6 +37,7 @@ def _repo(db: Session = Depends(get_db)) -> ReportRepository:
     return ReportRepository(db)
 
 
+@route_message("Resumen diario obtenido correctamente")
 @router.get("/daily", response_model=DailySummaryResponse, dependencies=[_admin_cajero])
 def daily_summary(
     target_date: date = Query(default=None, description="Fecha (YYYY-MM-DD). Por defecto: hoy"),
@@ -37,6 +46,7 @@ def daily_summary(
     return DailySummaryUseCase(repo).execute(target_date or date.today())
 
 
+@route_message("Top productos obtenidos correctamente")
 @router.get("/top-products", response_model=list[TopProductResponse], dependencies=[_admin_cajero])
 def top_products(
     date_from: date = Query(default=None, description="Fecha inicio. Por defecto: hoy"),
@@ -48,6 +58,7 @@ def top_products(
     return TopProductsUseCase(repo).execute(date_from or today, date_to or today, limit)
 
 
+@route_message("Reporte del menú obtenido correctamente")
 @router.get("/menu", response_model=MenuDayReportResponse, dependencies=[_admin_cajero])
 def menu_report(
     target_date: date = Query(default=None, description="Fecha. Por defecto: hoy"),
@@ -56,6 +67,7 @@ def menu_report(
     return MenuDayReportUseCase(repo).execute(target_date or date.today())
 
 
+@route_message("Pagos obtenidos correctamente")
 @router.get("/payments", response_model=PaymentRangeResponse, dependencies=[_admin_cajero])
 def payment_range(
     date_from: date = Query(..., description="Fecha inicio (YYYY-MM-DD)"),
@@ -67,6 +79,7 @@ def payment_range(
 
 # ── Dashboard ───────────────────────────────────────────────────────────────
 
+@route_message("Resumen del dashboard obtenido correctamente")
 @router.get("/summary", response_model=DashboardSummaryResponse, dependencies=[_admin_cajero])
 def dashboard_summary(
     date_from: date = Query(default=None, description="Fecha inicio. Por defecto: hoy"),
@@ -77,6 +90,7 @@ def dashboard_summary(
     return DashboardSummaryUseCase(repo).execute(date_from or today, date_to or today)
 
 
+@route_message("Ventas por hora obtenidas correctamente")
 @router.get("/sales-by-hour", response_model=SalesByHourResponse, dependencies=[_admin_cajero])
 def sales_by_hour(
     date_from: date = Query(default=None, description="Fecha inicio. Por defecto: hoy"),
@@ -87,6 +101,7 @@ def sales_by_hour(
     return SalesByHourUseCase(repo).execute(date_from or today, date_to or today)
 
 
+@route_message("Estado de pedidos obtenido correctamente")
 @router.get("/order-status", response_model=OrderStatusResponse, dependencies=[_admin_cajero])
 def order_status(
     date_from: date = Query(default=None, description="Fecha inicio. Por defecto: hoy"),
@@ -97,6 +112,7 @@ def order_status(
     return OrderStatusUseCase(repo).execute(date_from or today, date_to or today)
 
 
+@route_message("Ventas por categoría obtenidas correctamente")
 @router.get("/sales-by-category", response_model=SalesByCategoryResponse, dependencies=[_admin_cajero])
 def sales_by_category(
     date_from: date = Query(default=None, description="Fecha inicio. Por defecto: hoy"),
@@ -106,6 +122,7 @@ def sales_by_category(
     today = date.today()
     return SalesByCategoryUseCase(repo).execute(date_from or today, date_to or today)
 
+@route_message("Tendencia de ventas obtenida correctamente")
 @router.get("/sales-trend", response_model=SalesTrendResponse, dependencies=[_admin_cajero])
 def sales_trend(
     date_from: date = Query(...), date_to: date = Query(...),
