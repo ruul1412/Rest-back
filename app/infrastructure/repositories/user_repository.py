@@ -93,7 +93,16 @@ class UserRepository:
         model.is_active = False
         self._db.flush()
         return True
- 
+
+    def set_active(self, user_id: UUID, is_active: bool) -> bool:
+        """Activa o desactiva (soft delete) un usuario."""
+        model = self._db.query(UserModel).filter(UserModel.id == user_id).first()
+        if not model:
+            return False
+        model.is_active = is_active
+        self._db.flush()
+        return True
+
     def assign_role(self, user_id: UUID, role_code: str) -> bool:
         role = self._db.query(RoleModel).filter(RoleModel.code == role_code).first()
         if not role:

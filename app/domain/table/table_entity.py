@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from uuid import UUID
-
+from typing import Optional
 
 @dataclass
 class TableEntity:
@@ -8,3 +8,4 @@ class TableEntity:
     number:   int
     capacity: int
     status:   str   # libre | ocupada | reservada
+    description : Optional[str] = None
