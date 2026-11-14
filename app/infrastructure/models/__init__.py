@@ -18,3 +18,5 @@ from app.infrastructure.models.payment_split_model import PaymentSplitModel
 from app.infrastructure.models.permission_model import PermissionModel
 from app.infrastructure.models.role_permission_model import RolePermissionModel
 from app.infrastructure.models.user_permission_model import UserPermissionModel
+from app.infrastructure.models.company_model import CompanyModel
+from app.infrastructure.models.branch_model import BranchModel
