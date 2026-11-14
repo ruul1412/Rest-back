@@ -6,11 +6,11 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.interfaces.schemas.user_schema import (
-    UserCreateRequest, UserUpdateRequest, AssignRoleRequest, UserResponse
+    UserCreateRequest, UserUpdateRequest, AssignRoleRequest, UserResponse,UserStatusRequest
 )
 from app.application.user.user_use_cases import (
     CreateUserUseCase, ListUsersUseCase, GetUserUseCase,
-    UpdateUserUseCase, DeactivateUserUseCase, AssignRoleUseCase,
+    UpdateUserUseCase, AssignRoleUseCase,AssignRoleRequest, SetUserStatusUseCase
 )
 from app.interfaces.dependencies.auth_dependencies import require_roles
 from app.infrastructure.repositories.user_repository import UserRepository
@@ -68,11 +68,11 @@ def update_user(user_id: UUID, data: UserUpdateRequest, db: Session = Depends(ge
     return result
  
  
-@route_message("Usuario desactivado correctamente")
-@router.delete("/{user_id}", dependencies=[_admin])
-def deactivate_user(user_id: UUID, db: Session = Depends(get_db)):
+@route_message("Estado del usuario actualizado correctamente")
+@router.patch("/{user_id}/status", dependencies=[_admin])
+def set_user_status(user_id: UUID, data: UserStatusRequest, db: Session = Depends(get_db)):
     uow = UnitOfWork(db)
-    result = DeactivateUserUseCase(uow.users).execute(user_id)
+    result = SetUserStatusUseCase(uow.users).execute(user_id, data)
     uow.commit()
     return result
  

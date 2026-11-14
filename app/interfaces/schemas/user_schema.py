@@ -37,6 +37,9 @@ class UserUpdateRequest(BaseModel):
 class AssignRoleRequest(BaseModel):
     role_code: str
 
+class UserStatusRequest(BaseModel):
+    is_active: bool
+    
 # ── Responses ─────────────────────────────────────────────────────────────────
  
 class UserResponse(BaseModel):

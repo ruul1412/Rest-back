@@ -13,6 +13,7 @@ def _to_entity(m: TableModel) -> TableEntity:
         number=m.number,
         capacity=m.capacity,
         status=m.status,
+        description=  m.description
     )
 
 
@@ -23,6 +24,32 @@ class TableRepository:
 
     def count(self) -> int:
         return self._db.query(TableModel.id).count()
+
+    def get_all_descrip(
+        self,
+        skip: int = 0,
+        limit: int | None = None,
+        description: str | None = None
+    ) -> list[TableEntity]:
+
+        q = self._db.query(TableModel)
+
+        q = q.filter(TableModel.is_deleted == False)
+
+        if description and description.strip():
+            q = q.filter(
+                TableModel.description.ilike(f"%{description.strip()}%")
+            )
+
+        q = q.order_by(TableModel.number)
+
+        if skip:
+            q = q.offset(skip)
+
+        if limit is not None:
+            q = q.limit(limit)
+
+        return [_to_entity(m) for m in q.all()]
 
     def get_all(self, skip: int = 0, limit: int | None = None) -> list[TableEntity]:
         q = self._db.query(TableModel).order_by(TableModel.number)
@@ -42,8 +69,8 @@ class TableRepository:
             q = q.filter(TableModel.id != exclude_id)
         return q.first() is not None
 
-    def create(self, number: int, capacity: int) -> TableEntity:
-        m = TableModel(number=number, capacity=capacity, status="libre")
+    def create(self, number: int, capacity: int, description : str) -> TableEntity:
+        m = TableModel(number=number, capacity=capacity, status="libre", description = description)
         self._db.add(m)
         self._db.flush()
         self._db.refresh(m)

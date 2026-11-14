@@ -6,7 +6,7 @@ from app.interfaces.schemas.user_schema import (
     UserCreateRequest, 
     UserUpdateRequest, 
     AssignRoleRequest, 
-    UserResponse
+    UserResponse,UserStatusRequest
 )
 from app.infrastructure.repositories.user_repository import UserRepository
 from app.core.pagination import build_paginated_response, normalize_pagination
@@ -80,16 +80,17 @@ class UpdateUserUseCase:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
         return _to_response(entity)
 
-
-class DeactivateUserUseCase:
+class SetUserStatusUseCase:
     def __init__(self, repo: UserRepository): self._repo = repo
 
-    def execute(self, user_id: UUID) -> dict:
-        ok = self._repo.deactivate(user_id)
+    def execute(self, user_id: UUID, data: UserStatusRequest) -> dict:
+        ok = self._repo.set_active(user_id, data.is_active)
         if not ok:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
-        return {"detail": "Usuario desactivado"}
-
+        return {
+            "detail": "Usuario activado" if data.is_active else "Usuario desactivado",
+            "is_active": data.is_active,
+        }
 
 class AssignRoleUseCase:
     def __init__(self, repo: UserRepository): self._repo = repo

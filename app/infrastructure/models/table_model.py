@@ -14,6 +14,7 @@ class TableModel(Base, AuditableBase):
     number    = Column(Integer, nullable=False, unique=True)
     capacity  = Column(Integer, nullable=False)
     status    = Column(String(20), default=TableStatus.libre, nullable=False)
+    description = Column(String(20), nullable=True)
 
     order_groups = relationship("OrderGroupModel", back_populates="table")
 
