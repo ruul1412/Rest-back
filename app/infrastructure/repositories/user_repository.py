@@ -5,15 +5,25 @@ from app.infrastructure.models.user_model import UserModel
 from app.infrastructure.models.user_role_model import UserRoleModel
 from app.infrastructure.models.role_model import RoleModel
 from sqlalchemy.orm import joinedload
+from app.infrastructure.models.branch_user_model import BranchUserModel
+from app.infrastructure.models.branch_model import BranchModel
+from app.infrastructure.models.company_model import CompanyModel
 from app.domain.user.user_entity import UserEntity
 
 def _to_entity(model: UserModel) -> UserEntity:
     role_code = None
     role_name = None
-    # user_roles es uselist=False → objeto único, no lista
-    if model.user_roles and model.user_roles.role:
-        role_code = model.user_roles.role.code
-        role_name = model.user_roles.role.name
+
+    # Compatibilidad temporal con los roles globales existentes.
+    if model.user_roles:
+        global_role = next(
+            (ur.role for ur in model.user_roles if ur.role),
+            None
+        )
+
+        if global_role:
+            role_code = global_role.code
+            role_name = global_role.name
  
     return UserEntity(
         id=model.id,
@@ -114,5 +124,40 @@ class UserRepository:
         else:
             self._db.add(UserRoleModel(user_id=user_id, role_id=role.id))
  
+        self._db.flush()
+        return True
+
+    def assign_branch_role(
+        self,
+        user_id: UUID,
+        branch_id: UUID,
+        role_code: str
+        ) -> bool:
+
+        role = self._db.query(RoleModel).filter(
+            RoleModel.code == role_code
+        ).first()
+
+        if not role:
+            return False
+
+        existing = self._db.query(BranchUserModel).filter_by(
+            user_id=user_id,
+            branch_id=branch_id
+        ).first()
+
+        if existing:
+            existing.role_id = role.id
+            existing.is_active = True
+        else:
+            membership = BranchUserModel(
+                user_id=user_id,
+                branch_id=branch_id,
+                role_id=role.id,
+                is_active=True,
+                is_default=False
+            )
+            self._db.add(membership)
+
         self._db.flush()
         return True

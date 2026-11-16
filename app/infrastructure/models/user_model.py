@@ -19,8 +19,10 @@ class UserModel(Base, AuditableBase):
     dni        = Column(String, nullable=True)
     is_active  = Column(Boolean, default=True)
 
-    user_roles   = relationship("UserRoleModel",   back_populates="user", uselist=False)
+    user_roles   = relationship("UserRoleModel",   back_populates="user")
     order_groups = relationship("OrderGroupModel", back_populates="user")
 
     user_permissions = relationship("UserPermissionModel", back_populates="user",
                                     foreign_keys="UserPermissionModel.user_id")
+
+    branch_users = relationship("BranchUserModel",back_populates="user")

@@ -102,6 +102,7 @@ ROLES = [
     {"name": "Cocina",        "code": "cocina"},
     {"name": "Bartender",     "code": "bartender"},
     {"name": "Cajero",        "code": "cajero"},
+    {"name": "Super Administrador", "code": "super_admin"}
 ]
 
 
