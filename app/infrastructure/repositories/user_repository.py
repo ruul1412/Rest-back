@@ -8,6 +8,8 @@ from sqlalchemy.orm import joinedload
 from app.infrastructure.models.branch_user_model import BranchUserModel
 from app.infrastructure.models.branch_model import BranchModel
 from app.infrastructure.models.company_model import CompanyModel
+from app.domain.user.branch_user_entity import BranchUserEntity
+
 from app.domain.user.user_entity import UserEntity
 
 def _to_entity(model: UserModel) -> UserEntity:
@@ -161,3 +163,63 @@ class UserRepository:
 
         self._db.flush()
         return True
+
+    def get_active_memberships( self,user_id: UUID) -> list[BranchUserEntity]:
+
+        memberships = (
+            self._db.query(BranchUserModel)
+            .join(BranchUserModel.branch)
+            .join(BranchModel.company)
+            .join(BranchUserModel.role)
+            .filter(BranchUserModel.user_id == user_id,BranchUserModel.is_active == True)
+            .order_by(BranchUserModel.is_default.desc(), CompanyModel.name,BranchModel.name).all())
+
+        return [
+            BranchUserEntity(
+                user_id=membership.user_id,
+                branch_id=membership.branch_id,
+                branch_name=membership.branch.name,
+                company_id=membership.branch.company.id,
+                company_name=membership.branch.company.name,
+                role_id=membership.role_id,
+                role_code=membership.role.code,
+                role_name=membership.role.name,
+                is_default=membership.is_default
+            )
+            for membership in memberships
+        ]
+
+    
+    def get_active_membership(
+        self,
+        user_id: UUID,
+        branch_id: UUID
+    ) -> Optional[BranchUserEntity]:
+
+        membership = (
+            self._db.query(BranchUserModel)
+            .join(BranchUserModel.branch)
+            .join(BranchModel.company)
+            .join(BranchUserModel.role)
+            .filter(
+                BranchUserModel.user_id == user_id,
+                BranchUserModel.branch_id == branch_id,
+                BranchUserModel.is_active.is_(True)
+            )
+            .first()
+        )
+
+        if not membership:
+            return None
+
+        return BranchUserEntity(
+            user_id=membership.user_id,
+            branch_id=membership.branch_id,
+            branch_name=membership.branch.name,
+            company_id=membership.branch.company.id,
+            company_name=membership.branch.company.name,
+            role_id=membership.role_id,
+            role_code=membership.role.code,
+            role_name=membership.role.name,
+            is_default=membership.is_default
+        )

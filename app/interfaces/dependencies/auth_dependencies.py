@@ -33,24 +33,26 @@ def get_current_user(
 
 
 def require_roles(roles: list[str]):
-    """
-    Verifica que el usuario tenga uno de los roles indicados.
+    def _checker(
+        credentials: HTTPAuthorizationCredentials = Depends(security)
+    ):
+        payload = decode_access_token(credentials.credentials)
 
-    Uso:
-        # Solo como guardia:
-        @router.get("/ruta", dependencies=[Depends(require_roles(["admin"]))])
+        if payload.get("scope") != "branch":
+            raise HTTPException(
+                status_code=403,
+                detail="Esta operación requiere un contexto de sucursal"
+            )
 
-        # Con acceso al usuario autenticado:
-        @router.get("/ruta")
-        def endpoint(user = Depends(require_roles(["admin"]))):
-            ...
-    """
-    def _checker(user: UserEntity = Depends(get_current_user)) -> UserEntity:
-        if user.role_code not in roles:
-            raise HTTPException(status_code=403, detail="No autorizado")
-        return user
+        if payload.get("role_code") not in roles:
+            raise HTTPException(
+                status_code=403,
+                detail="No autorizado"
+            )
+
+        return payload
+
     return _checker
-
 
 def require_permission(permission_code: str):
     """
