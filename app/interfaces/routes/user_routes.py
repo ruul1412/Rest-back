@@ -12,7 +12,7 @@ from app.application.user.user_use_cases import (
     CreateUserUseCase, ListUsersUseCase, GetUserUseCase,
     UpdateUserUseCase, AssignRoleUseCase,AssignRoleRequest, SetUserStatusUseCase
 )
-from app.interfaces.dependencies.auth_dependencies import require_roles
+from app.interfaces.dependencies.auth_dependencies import (require_roles, require_user_management)
 from app.infrastructure.repositories.user_repository import UserRepository
 from app.infrastructure.unit_of_work import UnitOfWork
 
@@ -34,24 +34,49 @@ def _repo(db: Session = Depends(get_db)) -> UserRepository:
     return UserRepository(db)
 
 
+# @route_message("Usuario creado correctamente")
+# @router.post("", response_model=UserResponse, status_code=201, dependencies=[_admin])
+# def create_user(data: UserCreateRequest, db: Session = Depends(get_db)):
+#     uow = UnitOfWork(db)
+#     result = CreateUserUseCase(uow.users).execute(data)
+#     uow.commit()
+#     return result
+
 @route_message("Usuario creado correctamente")
-@router.post("", response_model=UserResponse, status_code=201, dependencies=[_admin])
-def create_user(data: UserCreateRequest, db: Session = Depends(get_db)):
+@router.post("", response_model=UserResponse, status_code=201)
+def create_user(
+    data: UserCreateRequest,
+    db: Session = Depends(get_db),
+    actor: dict = Depends(require_user_management())
+):
     uow = UnitOfWork(db)
-    result = CreateUserUseCase(uow.users).execute(data)
-    uow.commit()
-    return result
+
+    try:
+        result = CreateUserUseCase(uow.users).execute(data, actor)
+        uow.commit()
+        return result
+    except Exception:
+        uow.rollback()
+        raise
 
 
 @route_message("Usuarios obtenidos correctamente")
-@router.get("", dependencies=[_admin])
+@router.get("")
 def list_users(
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=settings.DEFAULT_PAGE_SIZE, ge=1, le=settings.MAX_PAGE_SIZE),
+    page_size: int = Query(
+        default=settings.DEFAULT_PAGE_SIZE,
+        ge=1,
+        le=settings.MAX_PAGE_SIZE
+    ),
     repo: UserRepository = Depends(_repo),
+    actor: dict = Depends(require_user_management()),
 ):
-    return ListUsersUseCase(repo).execute(page=page, page_size=page_size)
-
+    return ListUsersUseCase(repo).execute(
+        page=page,
+        page_size=page_size,
+        actor=actor
+    )
 
 @route_message("Usuario obtenido correctamente")
 @router.get("/{user_id}", response_model=UserResponse, dependencies=[_admin])

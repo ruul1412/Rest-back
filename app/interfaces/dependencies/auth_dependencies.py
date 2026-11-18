@@ -80,3 +80,25 @@ def require_permission(permission_code: str):
             )
         return user
     return _checker
+
+def require_user_management():
+    def _checker(
+        credentials: HTTPAuthorizationCredentials = Depends(security)
+    ):
+        payload = decode_access_token(credentials.credentials)
+
+        scope = payload.get("scope")
+        role_code = payload.get("role_code")
+
+        if scope == "platform" and role_code == "super_admin":
+            return payload
+
+        if scope == "branch" and role_code == "admin":
+            return payload
+
+        raise HTTPException(
+            status_code=403,
+            detail="No autorizado para gestionar usuarios"
+        )
+
+    return _checker

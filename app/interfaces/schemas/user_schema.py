@@ -17,14 +17,16 @@ from uuid import UUID
 #     password: str
 
 # ── Requests ──────────────────────────────────────────────────────────────────
- 
 class UserCreateRequest(BaseModel):
-    email:      EmailStr
-    password:   str
+    email: EmailStr
+    password: Optional[str] = None
     first_name: Optional[str] = None
-    last_name:  Optional[str] = None
-    phone:      Optional[str] = None
-    dni:        Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    dni: Optional[str] = None
+
+    branch_id: Optional[UUID] = None
+    role_code: str
  
  
 class UserUpdateRequest(BaseModel):

@@ -27,32 +27,188 @@ def _to_response(entity) -> UserResponse:
     )
 
 
+# class CreateUserUseCase:
+#     def __init__(self, repo: UserRepository): self._repo = repo
+
+#     def execute(self, data: UserCreateRequest) -> UserResponse:
+#         if self._repo.email_exists(data.email):
+#             raise HTTPException(status_code=400, detail="El email ya está registrado")
+
+#         entity = self._repo.create(
+#             email=data.email,
+#             hashed_password=hash_password(data.password),
+#             first_name=data.first_name,
+#             last_name=data.last_name,
+#             phone=data.phone,
+#             dni=data.dni,
+#         )
+#         return _to_response(entity)
+
 class CreateUserUseCase:
-    def __init__(self, repo: UserRepository): self._repo = repo
+    def __init__(self, repo: UserRepository):
+        self._repo = repo
 
-    def execute(self, data: UserCreateRequest) -> UserResponse:
-        if self._repo.email_exists(data.email):
-            raise HTTPException(status_code=400, detail="El email ya está registrado")
+    def execute(self, data: UserCreateRequest, actor: dict) -> UserResponse:
 
-        entity = self._repo.create(
-            email=data.email,
-            hashed_password=hash_password(data.password),
-            first_name=data.first_name,
-            last_name=data.last_name,
-            phone=data.phone,
-            dni=data.dni,
+        scope = actor.get("scope")
+
+        if scope == "platform":
+            branch_id = data.branch_id
+
+            if not branch_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Debe seleccionar una sucursal"
+                )
+
+        elif scope == "branch":
+            branch_id = UUID(actor["branch_id"])
+
+            if data.branch_id and data.branch_id != branch_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="No puede asignar usuarios a otra sucursal"
+                )
+        else:
+            raise HTTPException(status_code=403, detail="Contexto no válido")
+
+        if data.role_code == "super_admin":
+            raise HTTPException(
+                status_code=400,
+                detail="No se puede asignar super_admin como rol de sucursal"
+            )
+
+        branch = self._repo.get_assignable_branch(branch_id)
+
+        if not branch:
+            raise HTTPException(
+                status_code=404,
+                detail="Sucursal no encontrada o empresa inactiva"
+            )
+
+        user = self._repo.get_by_email(data.email)
+
+        if user:
+            if not user.is_active:
+                raise HTTPException(
+                    status_code=400,
+                    detail="El usuario está desactivado"
+                )
+
+            user_id = user.id
+
+        else:
+            if not data.password:
+                raise HTTPException(
+                    status_code=400,
+                    detail="La contraseña es obligatoria para crear un usuario"
+                )
+
+            user = self._repo.create(
+                email=data.email,
+                hashed_password=hash_password(data.password),
+                first_name=data.first_name,
+                last_name=data.last_name,
+                phone=data.phone,
+                dni=data.dni,
+            )
+
+            user_id = user.id
+
+        ok = self._repo.assign_branch_role(
+            user_id=user_id,
+            branch_id=branch_id,
+            role_code=data.role_code
         )
+
+        if not ok:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Rol '{data.role_code}' no encontrado"
+            )
+
+        # Obtener la membresía con el rol asignado
+        membership = self._repo.get_active_membership(
+            user_id,
+            branch_id
+        )
+
+        if not membership:
+            raise HTTPException(
+                status_code=500,
+                detail="No se pudo obtener la asignación del usuario"
+            )
+
+        # Recuperar la entidad del usuario
+        entity = self._repo.get_by_id(user_id)
+
+        if not entity:
+            raise HTTPException(
+                status_code=404,
+                detail="Usuario no encontrado"
+            )
+
+        # Incorporar el rol de la sucursal a la entidad
+        entity.role_code = membership.role_code
+        entity.role_name = membership.role_name
+
         return _to_response(entity)
 
-
 class ListUsersUseCase:
-    def __init__(self, repo: UserRepository): self._repo = repo
+    def __init__(self, repo: UserRepository):
+        self._repo = repo
 
-    def execute(self, page: int = 1, page_size: int | None = None) -> dict:
+    def execute(
+        self,
+        page: int = 1,
+        page_size: int | None = None,
+        actor: dict | None = None
+    ) -> dict:
+
+        if not actor:
+            raise HTTPException(401, "No se encontró el contexto del usuario")
+
         page, page_size, skip = normalize_pagination(page, page_size)
-        items = [_to_response(e) for e in self._repo.get_all(skip=skip, limit=page_size)]
-        total = self._repo.count()
-        return build_paginated_response(items, total, page, page_size)
+
+        scope = actor.get("scope")
+
+        # Super administrador: consulta global
+        if scope == "platform":
+            items = [
+                _to_response(e)
+                for e in self._repo.get_all(skip=skip, limit=page_size)
+            ]
+            total = self._repo.count()
+
+        # Administrador: consulta solo su sucursal
+        elif scope == "branch":
+            branch_id = actor.get("branch_id")
+
+            if not branch_id:
+                raise HTTPException(
+                    403,
+                    "No se encontró una sucursal en el contexto del usuario"
+                )
+
+            branch_id = UUID(str(branch_id))
+
+            items = [
+                _to_response(e)
+                for e in self._repo.get_all_by_branch(
+                    branch_id=branch_id,
+                    skip=skip,
+                    limit=page_size
+                )
+            ]
+
+            total = self._repo.count_by_branch(branch_id)
+
+        else:
+            raise HTTPException(403, "No tienes permiso para consultar usuarios")
+
+        return build_paginated_response(
+            items, total, page, page_size
+        )
 
 
 class GetUserUseCase:

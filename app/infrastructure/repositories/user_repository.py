@@ -223,3 +223,78 @@ class UserRepository:
             role_name=membership.role.name,
             is_default=membership.is_default
         )
+
+    
+    def get_assignable_branch(self, branch_id: UUID) -> Optional[BranchModel]:
+        return (
+            self._db.query(BranchModel)
+            .join(BranchModel.company)
+            .filter(
+                BranchModel.id == branch_id,
+                CompanyModel.is_active.is_(True)
+            )
+            .first()
+        )
+
+    def get_all_by_branch(
+        self,
+        branch_id: UUID,
+        skip: int = 0,
+        limit: int = 50
+    ) -> list[UserEntity]:
+
+        models = (
+            self._base_query()
+            .options(
+                joinedload(UserModel.branch_users)
+                .joinedload(BranchUserModel.role)
+            )
+            .join(
+                BranchUserModel,
+                BranchUserModel.user_id == UserModel.id
+            )
+            .filter(
+                BranchUserModel.branch_id == branch_id,
+                BranchUserModel.is_active.is_(True)
+            )
+            .order_by(UserModel.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+        entities = []
+
+        for model in models:
+            entity = _to_entity(model)
+
+            membership = next(
+                (
+                    bu for bu in model.branch_users
+                    if bu.branch_id == branch_id and bu.is_active
+                ),
+                None
+            )
+
+            if membership and membership.role:
+                entity.role_code = membership.role.code
+                entity.role_name = membership.role.name
+
+            entities.append(entity)
+
+        return entities
+
+
+    def count_by_branch(self, branch_id: UUID) -> int:
+
+        return (
+            self._db.query(UserModel.id)
+            .join(BranchUserModel, BranchUserModel.user_id == UserModel.id)
+            .filter(
+                BranchUserModel.branch_id == branch_id,
+                BranchUserModel.is_active.is_(True)
+            )
+            .count()
+        )
+
+    
