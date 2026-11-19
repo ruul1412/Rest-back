@@ -12,7 +12,7 @@ from app.interfaces.schemas.branch_schema import (
 from app.application.branch.branch_use_cases import (
     ListBranchesUseCase
 )
-from app.interfaces.dependencies.auth_dependencies import require_roles
+from app.interfaces.dependencies.auth_dependencies import require_platform_admin
 from app.infrastructure.repositories.branch_repository import BranchRepository
 from app.infrastructure.unit_of_work import UnitOfWork
 
@@ -26,16 +26,14 @@ def route_message(message: str):
     return decorator
 
 
-_admin      = Depends(require_roles(["admin"]))
-_all_staff  = Depends(require_roles(["admin", "me"
-"sero", "cajero", "cocina", "bartender"]))
-_table_ops  = Depends(require_roles(["admin", "mesero", "cajero"]))
+_platform_admin = Depends(require_platform_admin())
+
 
 def _repo(db: Session = Depends(get_db)) -> BranchRepository:
     return BranchRepository(db)
 
 @route_message("Sucursales obtenidas correctamente")
-@router.get("", dependencies=[_all_staff])
+@router.get("", dependencies=[_platform_admin])
 def list_branches(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=settings.DEFAULT_PAGE_SIZE, ge=1, le=settings.MAX_PAGE_SIZE),

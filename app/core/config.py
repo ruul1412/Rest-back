@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     PRINTER_PORT: int = 9100
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+    SUPER_ADMIN_EMAIL: str | None = None
+    SUPER_ADMIN_PASSWORD: str | None = None
+    SUPER_ADMIN_FIRST_NAME: str = "Super"
+    SUPER_ADMIN_LAST_NAME: str = "Admin"
  
 
 

@@ -121,10 +121,16 @@ class CreateUserUseCase:
             role_code=data.role_code
         )
 
-        if not ok:
+        if ok is None:
             raise HTTPException(
                 status_code=404,
                 detail=f"Rol '{data.role_code}' no encontrado"
+            )
+
+        if not ok:
+            raise HTTPException(
+                status_code=409,
+                detail="El usuario ya tiene una asignación en esta sucursal"
             )
 
         # Obtener la membresía con el rol asignado

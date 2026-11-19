@@ -6,11 +6,20 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.interfaces.schemas.user_schema import (
-    UserCreateRequest, UserUpdateRequest, AssignRoleRequest, UserResponse,UserStatusRequest
+    UserCreateRequest,
+    UserUpdateRequest,
+    AssignRoleRequest,
+    UserResponse,
+    UserStatusRequest
 )
+
 from app.application.user.user_use_cases import (
-    CreateUserUseCase, ListUsersUseCase, GetUserUseCase,
-    UpdateUserUseCase, AssignRoleUseCase,AssignRoleRequest, SetUserStatusUseCase
+    CreateUserUseCase,
+    ListUsersUseCase,
+    GetUserUseCase,
+    UpdateUserUseCase,
+    AssignRoleUseCase,
+    SetUserStatusUseCase
 )
 from app.interfaces.dependencies.auth_dependencies import (require_roles, require_user_management)
 from app.infrastructure.repositories.user_repository import UserRepository

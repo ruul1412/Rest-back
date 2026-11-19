@@ -134,34 +134,37 @@ class UserRepository:
         user_id: UUID,
         branch_id: UUID,
         role_code: str
-        ) -> bool:
+    ) -> Optional[bool]:
 
-        role = self._db.query(RoleModel).filter(
-            RoleModel.code == role_code
-        ).first()
-
-        if not role:
-            return False
-
+        # Evitar duplicar o modificar una asignación existente
         existing = self._db.query(BranchUserModel).filter_by(
             user_id=user_id,
             branch_id=branch_id
         ).first()
 
         if existing:
-            existing.role_id = role.id
-            existing.is_active = True
-        else:
-            membership = BranchUserModel(
-                user_id=user_id,
-                branch_id=branch_id,
-                role_id=role.id,
-                is_active=True,
-                is_default=False
-            )
-            self._db.add(membership)
+            return False
 
+        # Buscar el rol solicitado
+        role = self._db.query(RoleModel).filter(
+            RoleModel.code == role_code
+        ).first()
+
+        if not role:
+            return None
+
+        # Crear una nueva asignación
+        membership = BranchUserModel(
+            user_id=user_id,
+            branch_id=branch_id,
+            role_id=role.id,
+            is_active=True,
+            is_default=False
+        )
+
+        self._db.add(membership)
         self._db.flush()
+
         return True
 
     def get_active_memberships( self,user_id: UUID) -> list[BranchUserEntity]:

@@ -31,6 +31,24 @@ def get_current_user(
 
     return user
 
+def require_platform_admin():
+    def _checker(
+        credentials: HTTPAuthorizationCredentials = Depends(security)
+    ):
+        payload = decode_access_token(credentials.credentials)
+
+        if (
+            payload.get("scope") != "platform"
+            or payload.get("role_code") != "super_admin"
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Esta operación requiere permisos de Super Admin"
+            )
+
+        return payload
+
+    return _checker
 
 def require_roles(roles: list[str]):
     def _checker(

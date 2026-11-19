@@ -12,7 +12,7 @@ from app.interfaces.schemas.company_schema import (
 from app.application.company.company_use_cases import (
     ListCompaniesUseCase, CreateCompanyUseCase, UpdateCompanyUseCase,
 )
-from app.interfaces.dependencies.auth_dependencies import require_roles
+from app.interfaces.dependencies.auth_dependencies import require_platform_admin
 from app.infrastructure.repositories.company_repository import CompanyRepository
 from app.infrastructure.unit_of_work import UnitOfWork
 
@@ -26,15 +26,13 @@ def route_message(message: str):
     return decorator
 
 
-_admin      = Depends(require_roles(["admin"]))
-_all_staff  = Depends(require_roles(["admin", "mesero", "cajero", "cocina", "bartender"]))
-_table_ops  = Depends(require_roles(["admin", "mesero", "cajero"]))
+_platform_admin = Depends(require_platform_admin())
 
 def _repo(db: Session = Depends(get_db)) -> CompanyRepository:
     return CompanyRepository(db)
 
 @route_message("Empresas obtenidas correctamente")
-@router.get("", dependencies=[_all_staff])
+@router.get("", dependencies=[_platform_admin])
 def list_companies(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=settings.DEFAULT_PAGE_SIZE, ge=1, le=settings.MAX_PAGE_SIZE),
@@ -43,7 +41,7 @@ def list_companies(
     return ListCompaniesUseCase(repo).execute(page=page, page_size=page_size)
 
 @route_message("Empresa creada correctamente")
-@router.post("", response_model=CompanyResponse, status_code=201, dependencies=[_admin])
+@router.post("", response_model=CompanyResponse, status_code=201, dependencies=[_platform_admin])
 def create_company(data: CompanyCreateRequest, db:Session = Depends(get_db)):
     uow = UnitOfWork(db)
     result = CreateCompanyUseCase(uow.companies).execute(data)
