@@ -10,15 +10,21 @@ class BranchResponse(BaseModel):
     description: Optional[str]
     phone:    Optional[str]
     address: Optional[str]
+    #is_active: bool
 
 # ── Request ──────────────────────────────────────────────────────────────────
 
 class BranchCreateRequest(BaseModel):
+    company_id: UUID
     name: str
     description: Optional[str]
     phone: Optional[str]
     address: Optional[str]
+    #is_active: bool
 
 class BranchUpdateRequest(BranchCreateRequest):
-    id: UUID
-    is_active: bool
+    pass
+
+class BranchStatusUpdateRequest(BaseModel):
+    #is_active: bool
+    pass

@@ -12,3 +12,4 @@ class BranchEntity:
     description:   Optional[str]
     phone:         Optional[str]
     address:       str
+    #is_active:     bool

@@ -21,5 +21,7 @@ class CompanyCreateRequest(BaseModel):
     ruc: Optional[str]
 
 class CompanyUpdateRequest(CompanyCreateRequest):
-    id: UUID
     is_active: bool
+
+class CompanyStatusUpdateRequest(BaseModel):
+    is_active: bool    
