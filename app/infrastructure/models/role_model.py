@@ -14,8 +14,4 @@ class RoleModel(Base, AuditableBase):
     
     user_roles = relationship("UserRoleModel", back_populates="role")
     role_permissions = relationship("RolePermissionModel", back_populates="role")
-    branch_users = relationship(
-    "BranchUserModel",
-    back_populates="role"
-)
     

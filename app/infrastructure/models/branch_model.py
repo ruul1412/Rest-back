@@ -15,8 +15,4 @@ class BranchModel(Base, AuditableBase):
     address = Column(String,nullable=False) # DIRECCION DE LA SUCURSAL
     company_id = Column(UUID(as_uuid=True),ForeignKey("companys.id")) # ID DE LA EMPRESA A LA QUE PERTENECE
     company = relationship("CompanyModel", back_populates="branches") # RELACION CON LA EMPRESA(company)
-
-    branch_users = relationship(
-    "BranchUserModel",
-    back_populates="branch"
-)
+    #is_active = Column(Boolean, default=True) # ESTADO DE LA SUCURSAL (ACTIVA O INACTIVA)

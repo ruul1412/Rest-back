@@ -15,17 +15,10 @@ from app.domain.user.user_entity import UserEntity
 def _to_entity(model: UserModel) -> UserEntity:
     role_code = None
     role_name = None
-
-    # Compatibilidad temporal con los roles globales existentes.
-    if model.user_roles:
-        global_role = next(
-            (ur.role for ur in model.user_roles if ur.role),
-            None
-        )
-
-        if global_role:
-            role_code = global_role.code
-            role_name = global_role.name
+    # user_roles es uselist=False → objeto único, no lista
+    if model.user_roles and model.user_roles.role:
+        role_code = model.user_roles.role.code
+        role_name = model.user_roles.role.name
  
     return UserEntity(
         id=model.id,
