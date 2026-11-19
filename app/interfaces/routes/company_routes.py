@@ -7,10 +7,10 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.interfaces.schemas.company_schema import (
     CompanyCreateRequest, CompanyUpdateRequest,
-    CompanyResponse,
+    CompanyResponse, CompanyStatusUpdateRequest
 )
 from app.application.company.company_use_cases import (
-    ListCompaniesUseCase, CreateCompanyUseCase, UpdateCompanyUseCase,
+    DeleteCompanyUseCase, ListCompaniesUseCase, CreateCompanyUseCase, UpdateCompanyUseCase, UpdateCompanyStatusUseCase
 )
 from app.interfaces.dependencies.auth_dependencies import require_roles
 from app.infrastructure.repositories.company_repository import CompanyRepository
@@ -49,3 +49,29 @@ def create_company(data: CompanyCreateRequest, db:Session = Depends(get_db)):
     result = CreateCompanyUseCase(uow.companies).execute(data)
     uow.commit()
     return result
+
+@route_message("Empresa actualizada correctamente")
+@router.put("/{company_id}", response_model=CompanyResponse, dependencies=[_admin])
+def update_company(company_id: UUID, data: CompanyUpdateRequest, db: Session = Depends(get_db)):
+    uow = UnitOfWork(db)
+    result = UpdateCompanyUseCase(uow.companies).execute(company_id, data)
+    uow.commit()
+    return result
+
+@route_message("Estado de la Empresa actualizada correctamente")
+@router.patch("/{company_id}/status", response_model=CompanyResponse, dependencies=[_admin])
+def update_status_company(company_id: UUID, data: CompanyStatusUpdateRequest, db: Session = Depends(get_db)):
+    uow = UnitOfWork(db)
+    result = UpdateCompanyStatusUseCase(uow.companies).execute(company_id, data)
+    uow.commit()
+    return result
+
+
+@route_message("Empresa eliminada correctamente")
+@router.delete("/{company_id}", dependencies=[_admin])
+def delete_company(company_id: UUID, db: Session = Depends(get_db)):
+    uow = UnitOfWork(db)
+    result = DeleteCompanyUseCase(uow.companies).execute(company_id)
+    uow.commit()
+    return result
+

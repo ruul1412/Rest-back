@@ -10,6 +10,7 @@ from app.infrastructure.repositories.permission_repository import PermissionRepo
 from app.infrastructure.repositories.table_repository import TableRepository
 from app.infrastructure.repositories.user_repository import UserRepository
 from app.infrastructure.repositories.company_repository import CompanyRepository
+from app.infrastructure.repositories.branch_repository import BranchRepository
 
 
 class UnitOfWork:
@@ -28,7 +29,7 @@ class UnitOfWork:
         self.order_groups = OrderGroupRepository(db)
         self.payments = PaymentRepository(db)
         self.companies = CompanyRepository(db)
-
+        self.branches = BranchRepository(db)
     def commit(self):
         self.db.commit()
 

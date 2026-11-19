@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.domain.company.company_entity import CompanyEntity
 from app.infrastructure.models.company_model import CompanyModel
-from app.domain.table.table_entity import TableEntity
 
+from uuid import UUID
+from sqlalchemy import func
 
 def _to_entity(m: CompanyModel) -> CompanyEntity:
     return CompanyEntity(
@@ -24,10 +25,10 @@ class CompanyRepository:
         self._db = db
 
     def count(self) -> int:
-        return self._db.query(CompanyModel.id).count()
+        return self._db.query(CompanyModel.id).filter(CompanyModel.is_deleted==False).count()
 
     def get_all(self, skip: int = 0, limit: int | None = None) -> list[CompanyEntity]:
-        q = self._db.query(CompanyModel).order_by(CompanyModel.name)
+        q = self._db.query(CompanyModel).filter(CompanyModel.is_deleted==False).order_by(CompanyModel.name)
         if skip:
             q = q.offset(skip)
         if limit is not None:
@@ -53,10 +54,29 @@ class CompanyRepository:
         self._db.flush()
         return _to_entity(m)
 
+    def updateStatus(self, company_id: UUID, is_active: bool) -> Optional[CompanyEntity]:
+        m = self._db.query(CompanyModel).filter(CompanyModel.id==company_id).first()
+        if not m:
+            return None
+        m.is_active = is_active
+        self._db.flush()
+        return _to_entity(m)
+
     def delete(self, company_id: UUID) -> bool:
         m = self._db.query(CompanyModel).filter(CompanyModel.id==company_id).first()
         if not m:
             return False
-        self._db.delete(m)
+        #self._db.delete(m)   solo actulizar el campo is_deleted a True
+        m.is_active = False
+        m.is_deleted= True
         self._db.flush()
         return True
+
+
+    def name_exists(self, name: str, exclude_id: UUID | None = None) -> bool:
+        query = self._db.query(CompanyModel.id).filter(
+            func.lower(CompanyModel.name) == name.strip().lower()
+        )
+        if exclude_id:
+            query = query.filter(CompanyModel.id != exclude_id)
+        return query.first() is not None
