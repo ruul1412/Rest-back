@@ -16,7 +16,8 @@ def _to_entity(m: BranchModel) -> BranchEntity:
         description=m.description,
         phone=m.phone,
         address=m.address,
-        #is_active=m.is_active
+        is_active=m.is_active,
+        company_name = m.company.name
     )
 
 class BranchRepository:
@@ -28,16 +29,17 @@ class BranchRepository:
         return self._db.query(BranchModel.id).filter(BranchModel.is_deleted == False).count()
 
     def get_all(self, skip: int = 0, limit: int | None = None) -> list[BranchEntity]:
-        q = self._db.query(BranchModel).order_by(BranchModel.name)
+        q = self._db.query(BranchModel).join(BranchModel.company).order_by(BranchModel.name)
         if skip:
             q = q.offset(skip)
         if limit is not None:
             q = q.limit(limit)
+        
         return [_to_entity(m) for m in q.all()]
 
     #_________________
     def get_by_company(self, company_id: UUID, skip: int = 0, limit: int | None = None) -> list[BranchEntity]:
-            q = self._db.query(BranchModel).filter(BranchModel.company_id == company_id).order_by(BranchModel.name)
+            q = self._db.query(BranchModel).filter(BranchModel.company_id == company_id).filter(BranchModel.is_deleted == False).order_by(BranchModel.name)
             if skip:
                 q = q.offset(skip)
             if limit is not None:
@@ -46,7 +48,7 @@ class BranchRepository:
 
     #------------------contar por compania-----------------------
     def count_by_company(self, company_id: UUID) -> int:
-        return self._db.query(BranchModel.id).filter(BranchModel.company_id == company_id).count()
+        return self._db.query(BranchModel.id).filter(BranchModel.is_deleted == False).filter(BranchModel.company_id == company_id).count()
 
     def create(self, name: str, description: Optional[str], phone: Optional[str], address: str, company_id: UUID) -> BranchEntity: 
         m=BranchModel(name=name, description=description, phone=phone,address=address, company_id=company_id)
@@ -70,7 +72,7 @@ class BranchRepository:
             m = self._db.query(BranchModel).filter(BranchModel.id==branch_id).first()
             if not m:
                 return None
-           # m.is_active = is_active
+            m.is_active = is_active
             self._db.flush()
             return _to_entity(m)
 
@@ -78,7 +80,7 @@ class BranchRepository:
         m = self._db.query(BranchModel).filter(BranchModel.id==branch_id).first()
         if not m:
             return False   
-        #m.is_active = False
+        m.is_active = False
         m.is_deleted= True
         self._db.flush()
         return True

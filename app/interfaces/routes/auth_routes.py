@@ -15,7 +15,9 @@ from app.interfaces.schemas.auth_schema import (
     TokenResponse,
     MeResponse
 )
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
+from app.core.security import decode_access_token
 from app.application.auth.me_use_case import MeUseCase
 from app.application.auth.login_use_case import LoginUseCase
 from app.application.auth.select_branch_use_case import SelectBranchUseCase
@@ -24,7 +26,7 @@ from app.domain.user.user_entity import UserEntity
 
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
-
+security = HTTPBearer()
 
 @router.post("/login", response_model=LoginResponse)
 def login(
@@ -45,6 +47,11 @@ def select_branch(
 @router.get("/me", response_model=MeResponse)
 def me(
     current_user: UserEntity = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
-    return MeUseCase(UserRepository(db)).execute(current_user.id)
+    payload = decode_access_token(credentials.credentials)
+
+    return MeUseCase(
+        UserRepository(db)
+    ).execute(current_user, payload)

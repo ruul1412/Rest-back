@@ -49,7 +49,7 @@ def create_company(data: CompanyCreateRequest, db:Session = Depends(get_db)):
     return result
 
 @route_message("Empresa actualizada correctamente")
-@router.put("/{company_id}", response_model=CompanyResponse, dependencies=[_admin])
+@router.put("/{company_id}", response_model=CompanyResponse, dependencies=[_platform_admin])
 def update_company(company_id: UUID, data: CompanyUpdateRequest, db: Session = Depends(get_db)):
     uow = UnitOfWork(db)
     result = UpdateCompanyUseCase(uow.companies).execute(company_id, data)
@@ -57,7 +57,7 @@ def update_company(company_id: UUID, data: CompanyUpdateRequest, db: Session = D
     return result
 
 @route_message("Estado de la Empresa actualizada correctamente")
-@router.patch("/{company_id}/status", response_model=CompanyResponse, dependencies=[_admin])
+@router.patch("/{company_id}/status", response_model=CompanyResponse, dependencies=[_platform_admin])
 def update_status_company(company_id: UUID, data: CompanyStatusUpdateRequest, db: Session = Depends(get_db)):
     uow = UnitOfWork(db)
     result = UpdateCompanyStatusUseCase(uow.companies).execute(company_id, data)
@@ -66,7 +66,7 @@ def update_status_company(company_id: UUID, data: CompanyStatusUpdateRequest, db
 
 
 @route_message("Empresa eliminada correctamente")
-@router.delete("/{company_id}", dependencies=[_admin])
+@router.delete("/{company_id}", dependencies=[_platform_admin])
 def delete_company(company_id: UUID, db: Session = Depends(get_db)):
     uow = UnitOfWork(db)
     result = DeleteCompanyUseCase(uow.companies).execute(company_id)

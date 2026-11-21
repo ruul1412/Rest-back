@@ -10,7 +10,8 @@ class BranchResponse(BaseModel):
     description: Optional[str]
     phone:    Optional[str]
     address: Optional[str]
-    #is_active: bool
+    is_active: bool
+    company_name : str
 
 # ── Request ──────────────────────────────────────────────────────────────────
 
@@ -20,11 +21,10 @@ class BranchCreateRequest(BaseModel):
     description: Optional[str]
     phone: Optional[str]
     address: Optional[str]
-    #is_active: bool
+    is_active: bool
 
 class BranchUpdateRequest(BranchCreateRequest):
     pass
 
 class BranchStatusUpdateRequest(BaseModel):
-    #is_active: bool
-    pass
+    is_active: bool

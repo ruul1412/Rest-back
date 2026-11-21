@@ -41,6 +41,16 @@ class MeResponse(BaseModel):
     id: UUID
     email: str
     full_name: str
-    role_name: Optional[str] = None
+
+    # Contexto de autenticación
+    scope: str
     role_code: Optional[str] = None
+    role_name: Optional[str] = None
+
+    # Empresa y sucursal
+    company_id: Optional[UUID] = None
+    company_name: Optional[str] = None
+    branch_id: Optional[UUID] = None
+    branch_name: Optional[str] = None
+
     is_active: bool

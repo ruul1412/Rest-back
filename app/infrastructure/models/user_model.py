@@ -21,6 +21,9 @@ class UserModel(Base, AuditableBase):
 
     user_roles   = relationship("UserRoleModel",   back_populates="user", uselist=False)
     order_groups = relationship("OrderGroupModel", back_populates="user")
+    
+    branch_users = relationship("BranchUserModel", back_populates="user")
 
     user_permissions = relationship("UserPermissionModel", back_populates="user",
                                     foreign_keys="UserPermissionModel.user_id")
+    

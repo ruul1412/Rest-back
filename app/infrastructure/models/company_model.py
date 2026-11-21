@@ -11,8 +11,9 @@ class CompanyModel(Base, AuditableBase):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     description = Column(String,nullable=True) # REFERENTE AL NOMBRE GENERAL DE LA EMPRESA
     phone = Column(String,nullable=True)
-    is_active= Column(Boolean,default=True)
+    is_active = Column(Boolean,default=True)
     name = Column(String,nullable=False) # NOMBRE COMERCIAL
     ruc = Column(String,nullable=True)
+    
     branches = relationship("BranchModel", back_populates="company") # RELACION CON LAS SUCURSALES
     

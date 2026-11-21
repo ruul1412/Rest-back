@@ -17,9 +17,13 @@ from app.interfaces.schemas.branch_schema import(
 )
 
 def _resp(e) -> BranchResponse:
-    return BranchResponse(id=e.id, name=e.name, description=e.description, phone=e.phone, address=e.address
-                         #is_active=e.is_active
-                         )
+    return BranchResponse(id=e.id, 
+                          name=e.name, 
+                          description=e.description, 
+                          phone=e.phone, 
+                          address=e.address,
+                          is_active= e.is_active,
+                          company_name = e.company_name)
 
 class ListBranchesUseCase:
     def __init__(self, repo: BranchRepository): self.__repo=repo
