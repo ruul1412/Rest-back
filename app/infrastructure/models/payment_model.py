@@ -16,5 +16,8 @@ class PaymentModel(Base, AuditableBase):
     status    = Column(String(20),   default=PaymentStatus.pendiente, nullable=False)
     pagado_at = Column(DateTime(timezone=True), nullable=True)
 
+    branch_id = Column( UUID(as_uuid=True),ForeignKey("branches.id"), primary_key=True)
+    branch = relationship("BranchModel", back_populates="branch_payments")
+
     group = relationship("OrderGroupModel", back_populates="payment")
     splits = relationship("PaymentSplitModel", back_populates="payment", cascade="all, delete-orphan")

@@ -32,7 +32,7 @@ from app.infrastructure.db.seed_catalog import seed_catalog
 async def lifespan(app):
     seed_roles()
     seed_super_admin()
-    seed_catalog()
+    # seed_catalog()
     yield
 
 

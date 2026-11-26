@@ -26,6 +26,9 @@ class ProductModel(Base, AuditableBase):
     category      = relationship("CategoryModel",    back_populates="products")
     order_items   = relationship("OrderItemModel",   back_populates="product")
 
+    branch_id = Column( UUID(as_uuid=True),ForeignKey("branches.id"), primary_key=True)
+    branch = relationship("BranchModel", back_populates="branch_products")
+
     # Solo para bebidas (tiene_variantes=True)
     variants = relationship(
         "ProductVariantModel",
