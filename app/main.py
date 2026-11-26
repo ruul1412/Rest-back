@@ -24,14 +24,14 @@ from app.interfaces.routes.report_routes import router as report_routes
 # from app.interfaces.routes.print_routes import router as print_routes
 
 from app.infrastructure.db.seed_roles import seed_roles
-from app.infrastructure.db.seed_admin import seed_admin
+from app.infrastructure.db.seed_super_admin import seed_super_admin
 from app.infrastructure.db.seed_catalog import seed_catalog
 
 
 @asynccontextmanager
 async def lifespan(app):
     seed_roles()
-    seed_admin()
+    seed_super_admin()
     seed_catalog()
     yield
 

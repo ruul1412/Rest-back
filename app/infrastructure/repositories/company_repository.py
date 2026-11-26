@@ -1,13 +1,13 @@
+
 from typing import Optional
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.domain.company.company_entity import CompanyEntity
 from app.infrastructure.models.company_model import CompanyModel
 
-from uuid import UUID
-from sqlalchemy import func
 
 def _to_entity(m: CompanyModel) -> CompanyEntity:
     return CompanyEntity(
@@ -19,64 +19,153 @@ def _to_entity(m: CompanyModel) -> CompanyEntity:
         ruc=m.ruc
     )
 
+
 class CompanyRepository:
 
     def __init__(self, db: Session):
         self._db = db
 
     def count(self) -> int:
-        return self._db.query(CompanyModel.id).filter(CompanyModel.is_deleted==False).count()
+        return (
+            self._db.query(CompanyModel.id)
+            .filter(CompanyModel.is_deleted == False)
+            .count()
+        )
 
-    def get_all(self, skip: int = 0, limit: int | None = None) -> list[CompanyEntity]:
-        q = self._db.query(CompanyModel).filter(CompanyModel.is_deleted==False).order_by(CompanyModel.name)
+    def get_all(
+        self,
+        skip: int = 0,
+        limit: int | None = None
+    ) -> list[CompanyEntity]:
+
+        query = (
+            self._db.query(CompanyModel)
+            .filter(CompanyModel.is_deleted == False)
+            .order_by(CompanyModel.name)
+        )
+
         if skip:
-            q = q.offset(skip)
+            query = query.offset(skip)
+
         if limit is not None:
-            q = q.limit(limit)
-        return [_to_entity(m) for m in q.all()]
+            query = query.limit(limit)
 
-    def create(self, name: str, description: Optional[str], phone: Optional[str], ruc: Optional[str]) -> CompanyEntity: 
-        m=CompanyModel(name=name, description=description, phone=phone,is_active=True, ruc=ruc)
-        self._db.add(m)
+        return [_to_entity(company) for company in query.all()]
+
+    def create(
+        self,
+        name: str,
+        description: Optional[str],
+        phone: Optional[str],
+        ruc: Optional[str]
+    ) -> CompanyEntity:
+
+        company = CompanyModel(
+            name=name,
+            description=description,
+            phone=phone,
+            is_active=True,
+            ruc=ruc
+        )
+
+        self._db.add(company)
         self._db.flush()
-        self._db.refresh(m)
-        return _to_entity(m)
+        self._db.refresh(company)
 
-    def update(self, company_id: UUID, name: Optional[str], description: Optional[str], phone: Optional[str], is_active: bool, ruc: Optional[str]) -> Optional[CompanyEntity]:
-        m = self._db.query(CompanyModel).filter(CompanyModel.id==company_id).first()
-        if not m:
+        return _to_entity(company)
+
+    def update(
+        self,
+        company_id: UUID,
+        name: Optional[str],
+        description: Optional[str],
+        phone: Optional[str],
+        is_active: bool,
+        ruc: Optional[str]
+    ) -> Optional[CompanyEntity]:
+
+        company = (
+            self._db.query(CompanyModel)
+            .filter(
+                CompanyModel.id == company_id,
+                CompanyModel.is_deleted == False
+            )
+            .first()
+        )
+
+        if not company:
             return None
-        m.name = name
-        m.description = description
-        m.phone = phone
-        m.is_active = is_active
-        m.ruc = ruc
-        self._db.flush()
-        return _to_entity(m)
 
-    def updateStatus(self, company_id: UUID, is_active: bool) -> Optional[CompanyEntity]:
-        m = self._db.query(CompanyModel).filter(CompanyModel.id==company_id).first()
-        if not m:
-            return None
-        m.is_active = is_active
+        company.name = name
+        company.description = description
+        company.phone = phone
+        company.is_active = is_active
+        company.ruc = ruc
+
         self._db.flush()
-        return _to_entity(m)
+
+        return _to_entity(company)
+
+    def updateStatus(
+        self,
+        company_id: UUID,
+        is_active: bool
+    ) -> Optional[CompanyEntity]:
+
+        company = (
+            self._db.query(CompanyModel)
+            .filter(
+                CompanyModel.id == company_id,
+                CompanyModel.is_deleted == False
+            )
+            .first()
+        )
+
+        if not company:
+            return None
+
+        company.is_active = is_active
+
+        self._db.flush()
+
+        return _to_entity(company)
 
     def delete(self, company_id: UUID) -> bool:
-        m = self._db.query(CompanyModel).filter(CompanyModel.id==company_id).first()
-        if not m:
+
+        company = (
+            self._db.query(CompanyModel)
+            .filter(
+                CompanyModel.id == company_id,
+                CompanyModel.is_deleted == False
+            )
+            .first()
+        )
+
+        if not company:
             return False
-        #self._db.delete(m)   solo actulizar el campo is_deleted a True
-        m.is_active = False
-        m.is_deleted= True
+
+        company.is_active = False
+        company.is_deleted = True
+
         self._db.flush()
+
         return True
 
+    def name_exists(
+        self,
+        name: str,
+        exclude_id: UUID | None = None
+    ) -> bool:
 
-    def name_exists(self, name: str, exclude_id: UUID | None = None) -> bool:
-        query = self._db.query(CompanyModel.id).filter(
-            func.lower(CompanyModel.name) == name.strip().lower()
+        query = (
+            self._db.query(CompanyModel.id)
+            .filter(
+                func.lower(CompanyModel.name) == name.strip().lower(),
+                CompanyModel.is_deleted == False
+            )
         )
+
         if exclude_id:
             query = query.filter(CompanyModel.id != exclude_id)
+
         return query.first() is not None

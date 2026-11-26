@@ -98,7 +98,7 @@ class TableRepository:
         m = self._db.query(TableModel).filter(TableModel.id == table_id).first()
         if not m:
             return False
-        self._db.delete(m)
+        m.is_deleted = True
         self._db.flush()
         return True
 

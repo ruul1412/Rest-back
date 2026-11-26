@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # 🔥 usa SOLO UNA fuente de verdad
-    DATABASE_URL: str = "postgresql://postgres:201411@localhost:5432/restaurant_db"
+    DATABASE_URL: str = "postgresql://postgres:201411@localhost:5432/restauranteV3"
 
     SECRET_KEY: str = "supersecretkey"
     ALGORITHM: str = "HS256"
@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     PRINTER_PORT: int = 9100
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+    SUPER_ADMIN_EMAIL: str | None = None
+    SUPER_ADMIN_PASSWORD: str | None = None
+    SUPER_ADMIN_FIRST_NAME: str = "Super"
+    SUPER_ADMIN_LAST_NAME: str = "Admin"
  
 
 

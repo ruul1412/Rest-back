@@ -13,5 +13,6 @@ class RoleModel(Base, AuditableBase):
     code = Column(String, unique=True, nullable=False) 
     
     user_roles = relationship("UserRoleModel", back_populates="role")
+    branch_users = relationship("BranchUserModel", back_populates="role")
     role_permissions = relationship("RolePermissionModel", back_populates="role")
     

@@ -7,18 +7,18 @@ from uuid import UUID
 class CompanyResponse(BaseModel):
     id:       UUID
     name:     str
-    description: Optional[str]
-    phone:    Optional[str]
+    description: Optional[str] = None
+    phone: Optional[str] = None
+    ruc: Optional[str] = None
     is_active: bool
-    ruc:      Optional[str]
 
 # ── Request ──────────────────────────────────────────────────────────────────
 
 class CompanyCreateRequest(BaseModel):
     name: str
-    description: Optional[str]
-    phone: Optional[str]
-    ruc: Optional[str]
+    description: Optional[str] = None
+    phone: Optional[str] = None
+    ruc: Optional[str] = None
 
 class CompanyUpdateRequest(CompanyCreateRequest):
     is_active: bool

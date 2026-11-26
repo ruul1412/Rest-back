@@ -20,3 +20,4 @@ from app.infrastructure.models.role_permission_model import RolePermissionModel
 from app.infrastructure.models.user_permission_model import UserPermissionModel
 from app.infrastructure.models.company_model import CompanyModel
 from app.infrastructure.models.branch_model import BranchModel
+from app.infrastructure.models.branch_user_model import BranchUserModel
