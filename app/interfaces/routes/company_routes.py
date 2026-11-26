@@ -1,0 +1,75 @@
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+
+from app.core.config import settings
+from app.core.database import get_db
+from app.interfaces.schemas.company_schema import (
+    CompanyCreateRequest, CompanyUpdateRequest,
+    CompanyResponse, CompanyStatusUpdateRequest
+)
+from app.application.company.company_use_cases import (
+    DeleteCompanyUseCase, ListCompaniesUseCase, CreateCompanyUseCase, UpdateCompanyUseCase, UpdateCompanyStatusUseCase
+)
+from app.interfaces.dependencies.auth_dependencies import require_platform_admin
+from app.infrastructure.repositories.company_repository import CompanyRepository
+from app.infrastructure.unit_of_work import UnitOfWork
+
+router = APIRouter(prefix="/companies", tags=["Companies"])
+
+
+def route_message(message: str):
+    def decorator(func):
+        func.response_message = message
+        return func
+    return decorator
+
+
+_platform_admin = Depends(require_platform_admin())
+
+def _repo(db: Session = Depends(get_db)) -> CompanyRepository:
+    return CompanyRepository(db)
+
+@route_message("Empresas obtenidas correctamente")
+@router.get("", dependencies=[_platform_admin])
+def list_companies(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=settings.DEFAULT_PAGE_SIZE, ge=1, le=settings.MAX_PAGE_SIZE),
+    repo: CompanyRepository = Depends(_repo),
+):
+    return ListCompaniesUseCase(repo).execute(page=page, page_size=page_size)
+
+@route_message("Empresa creada correctamente")
+@router.post("", response_model=CompanyResponse, status_code=201, dependencies=[_platform_admin])
+def create_company(data: CompanyCreateRequest, db:Session = Depends(get_db)):
+    uow = UnitOfWork(db)
+    result = CreateCompanyUseCase(uow.companies).execute(data)
+    uow.commit()
+    return result
+
+@route_message("Empresa actualizada correctamente")
+@router.put("/{company_id}", response_model=CompanyResponse, dependencies=[_platform_admin])
+def update_company(company_id: UUID, data: CompanyUpdateRequest, db: Session = Depends(get_db)):
+    uow = UnitOfWork(db)
+    result = UpdateCompanyUseCase(uow.companies).execute(company_id, data)
+    uow.commit()
+    return result
+
+@route_message("Estado de la Empresa actualizada correctamente")
+@router.patch("/{company_id}/status", response_model=CompanyResponse, dependencies=[_platform_admin])
+def update_status_company(company_id: UUID, data: CompanyStatusUpdateRequest, db: Session = Depends(get_db)):
+    uow = UnitOfWork(db)
+    result = UpdateCompanyStatusUseCase(uow.companies).execute(company_id, data)
+    uow.commit()
+    return result
+
+
+@route_message("Empresa eliminada correctamente")
+@router.delete("/{company_id}", dependencies=[_platform_admin])
+def delete_company(company_id: UUID, db: Session = Depends(get_db)):
+    uow = UnitOfWork(db)
+    result = DeleteCompanyUseCase(uow.companies).execute(company_id)
+    uow.commit()
+    return result
+

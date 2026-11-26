@@ -19,24 +19,54 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 #  ── JWT ───────────────────────────────────────────────────────────────────────
  
-def create_access_token(data: dict) -> str:
+def create_access_token(
+    data: dict,
+    expires_minutes: int | None = None,
+    token_type: str = "access_token"
+) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+
+    duration = expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES
+
+    expire = datetime.now(timezone.utc) + timedelta(minutes=duration)
+
+    to_encode.update({
+        "exp": expire,
+        "type": token_type
+    })
+
+    return jwt.encode(
+        to_encode,
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM
     )
-    to_encode.update({"exp": expire, "type": "access_token"})
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
- 
- 
-def decode_access_token(token: str) -> dict:
+
+
+def decode_token(token: str, expected_type: str = "access_token") -> dict:
     try:
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
         )
     except JWTError:
-        raise HTTPException(status_code=401, detail="Token inválido")
- 
-    if payload.get("type") != "access_token":
-        raise HTTPException(status_code=401, detail="Token inválido")
- 
+        raise HTTPException(
+            status_code=401,
+            detail="Token inválido o expirado"
+        )
+
+    if payload.get("type") != expected_type:
+        raise HTTPException(
+            status_code=401,
+            detail="Tipo de token inválido"
+        )
+
     return payload
+
+
+def decode_access_token(token: str) -> dict:
+    return decode_token(token, "access_token")
+
+
+def decode_selection_token(token: str) -> dict:
+    return decode_token(token, "branch_selection")

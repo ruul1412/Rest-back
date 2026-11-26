@@ -11,7 +11,7 @@ from app.interfaces.schemas.table_schema import (
 )
 from app.application.table.table_use_cases import (
     ListTablesUseCase, CreateTableUseCase, UpdateTableUseCase,
-    UpdateTableStatusUseCase, DeleteTableUseCase,
+    UpdateTableStatusUseCase, DeleteTableUseCase,ListTablesDescripUseCase
 )
 from app.interfaces.dependencies.auth_dependencies import require_roles
 from app.infrastructure.repositories.table_repository import TableRepository
@@ -35,6 +35,23 @@ _table_ops  = Depends(require_roles(["admin", "mesero", "cajero"]))
 def _repo(db: Session = Depends(get_db)) -> TableRepository:
     return TableRepository(db)
 
+@route_message("Mesas obtenidas correctamente")
+@router.get("/descrip", dependencies=[_all_staff])
+def list_tables(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(
+        default=settings.DEFAULT_PAGE_SIZE,
+        ge=1,
+        le=settings.MAX_PAGE_SIZE
+    ),
+    description: str | None = Query(default=None),
+    repo: TableRepository = Depends(_repo),
+):
+    return ListTablesDescripUseCase(repo).execute(
+        page=page,
+        page_size=page_size,
+        description=description
+    )
 
 @route_message("Mesas obtenidas correctamente")
 @router.get("", dependencies=[_all_staff])

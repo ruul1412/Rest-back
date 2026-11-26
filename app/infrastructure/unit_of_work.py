@@ -9,6 +9,8 @@ from app.infrastructure.repositories.payment_repository import PaymentRepository
 from app.infrastructure.repositories.permission_repository import PermissionRepository
 from app.infrastructure.repositories.table_repository import TableRepository
 from app.infrastructure.repositories.user_repository import UserRepository
+from app.infrastructure.repositories.company_repository import CompanyRepository
+from app.infrastructure.repositories.branch_repository import BranchRepository
 
 
 class UnitOfWork:
@@ -26,7 +28,8 @@ class UnitOfWork:
         self.orders = OrderRepository(db)
         self.order_groups = OrderGroupRepository(db)
         self.payments = PaymentRepository(db)
-
+        self.companies = CompanyRepository(db)
+        self.branches = BranchRepository(db)
     def commit(self):
         self.db.commit()
 

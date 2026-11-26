@@ -15,6 +15,8 @@ from app.interfaces.routes.catalog_routes import category_router, product_type_r
 from app.interfaces.routes.table_routes import router as table_routes
 from app.interfaces.routes.menu_routes import router as menu_routes
 from app.interfaces.routes.payment_routes import router as payment_routes
+from app.interfaces.routes.company_routes import router as company_routes
+from app.interfaces.routes.branch_routes import router as branch_routes
 
 # antiguos
 from app.interfaces.routes.orden_routes import router as order_routes
@@ -22,14 +24,14 @@ from app.interfaces.routes.report_routes import router as report_routes
 # from app.interfaces.routes.print_routes import router as print_routes
 
 from app.infrastructure.db.seed_roles import seed_roles
-from app.infrastructure.db.seed_admin import seed_admin
+from app.infrastructure.db.seed_super_admin import seed_super_admin
 from app.infrastructure.db.seed_catalog import seed_catalog
 
 
 @asynccontextmanager
 async def lifespan(app):
     seed_roles()
-    seed_admin()
+    seed_super_admin()
     seed_catalog()
     yield
 
@@ -177,6 +179,8 @@ app.include_router(menu_routes)
 app.include_router(order_routes)
 app.include_router(payment_routes)
 app.include_router(report_routes)
+app.include_router(company_routes)
+app.include_router(branch_routes)
 
 # app.include_router(print_routes)
 
