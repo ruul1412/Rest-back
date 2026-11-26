@@ -1,6 +1,5 @@
-
 from uuid import UUID
-
+from typing import Optional
 from fastapi import HTTPException
 
 from app.core.pagination import (
@@ -16,14 +15,17 @@ from app.interfaces.schemas.user_schema import (
     UpdateBranchRoleRequest,
     UserCreateRequest,
     UserResponse,
+    UserSearchResponse,
     UserStatusRequest,
     UserUpdateRequest,
+    BranchAssignmentResponse,
 )
 
 
 # =========================================================
 # FUNCIONES AUXILIARES
 # =========================================================
+
 
 def _to_response(entity) -> UserResponse:
     return UserResponse(
@@ -33,15 +35,38 @@ def _to_response(entity) -> UserResponse:
         last_name=entity.last_name,
         phone=entity.phone,
         dni=entity.dni,
+
+        # Estado global
         is_active=entity.is_active,
+        is_deleted=entity.is_deleted,
+
+        # Rol según el contexto
         role_name=entity.role_name,
         role_code=entity.role_code,
-    )
 
+        # Estado de asignación individual
+        branch_is_active=entity.branch_is_active,
+        branch_is_deleted=entity.branch_is_deleted,
+
+        # Asignaciones a sucursales
+        assignments=[
+            BranchAssignmentResponse(
+                branch_id=item.branch_id,
+                branch_name=item.branch_name,
+                company_name=item.company_name,
+                role_code=item.role_code,
+                role_name=item.role_name,
+                is_active=item.is_active,
+                is_deleted=item.is_deleted,
+            )
+            for item in entity.assignments
+        ],
+    )
 
 # =========================================================
 # CREACIÓN DE USUARIOS
 # =========================================================
+
 
 class CreateUserUseCase:
 
@@ -55,57 +80,21 @@ class CreateUserUseCase:
     ) -> UserResponse:
 
         scope = actor.get("scope")
+        role_code = actor.get("role_code")
 
-        if scope == "platform" and actor.get("role_code") == "super_admin":
-            branch_id = data.branch_id
+        # ==========================================
+        # 1. SUPER ADMIN: crear identidad global
+        # ==========================================
+        if scope == "platform" and role_code == "super_admin":
 
-            if not branch_id:
+            user = self._repo.get_by_email(data.email)
+
+            if user:
                 raise HTTPException(
-                    status_code=400,
-                    detail="Debe seleccionar una sucursal"
+                    status_code=409,
+                    detail="Ya existe una cuenta con ese correo"
                 )
 
-        elif scope == "branch" and actor.get("role_code") == "admin":
-            branch_id = UUID(str(actor["branch_id"]))
-
-            if data.branch_id and data.branch_id != branch_id:
-                raise HTTPException(
-                    status_code=403,
-                    detail="No puede asignar usuarios a otra sucursal"
-                )
-
-        else:
-            raise HTTPException(
-                status_code=403,
-                detail="Contexto no válido"
-            )
-
-        if data.role_code == "super_admin":
-            raise HTTPException(
-                status_code=400,
-                detail="No se puede asignar super_admin como rol de sucursal"
-            )
-
-        branch = self._repo.get_assignable_branch(branch_id)
-
-        if not branch:
-            raise HTTPException(
-                status_code=404,
-                detail="Sucursal no encontrada o empresa inactiva"
-            )
-
-        user = self._repo.get_by_email(data.email)
-
-        if user:
-            if not user.is_active:
-                raise HTTPException(
-                    status_code=400,
-                    detail="El usuario está desactivado"
-                )
-
-            user_id = user.id
-
-        else:
             if not data.password:
                 raise HTTPException(
                     status_code=400,
@@ -121,53 +110,124 @@ class CreateUserUseCase:
                 dni=data.dni,
             )
 
-            user_id = user.id
+            return _to_response(user)
 
-        ok = self._repo.assign_branch_role(
-            user_id=user_id,
-            branch_id=branch_id,
-            role_code=data.role_code
-        )
+        # ==========================================
+        # 2. ADMIN: crear o reutilizar identidad
+        #    y asignarla a su sucursal
+        # ==========================================
+        elif scope == "branch" and role_code == "admin":
 
-        if ok is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Rol '{data.role_code}' no encontrado"
+            branch_id = UUID(str(actor["branch_id"]))
+
+            if data.branch_id and data.branch_id != branch_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="No puede asignar usuarios a otra sucursal"
+                )
+
+            if not data.role_code:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Debe seleccionar un rol para la sucursal"
+                )
+
+            if data.role_code == "super_admin":
+                raise HTTPException(
+                    status_code=400,
+                    detail="No se puede asignar super_admin como rol de sucursal"
+                )
+
+            branch = self._repo.get_assignable_branch(branch_id)
+
+            if not branch:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Sucursal no encontrada o empresa inactiva"
+                )
+
+            user = self._repo.get_by_email(data.email)
+
+            if user:
+                if user.is_deleted:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="La cuenta está eliminada"
+                    )
+
+                if not user.is_active:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="El usuario está desactivado"
+                    )
+
+                user_id = user.id
+
+            else:
+                if not data.password:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="La contraseña es obligatoria para crear un usuario"
+                    )
+
+                user = self._repo.create(
+                    email=data.email,
+                    hashed_password=hash_password(data.password),
+                    first_name=data.first_name,
+                    last_name=data.last_name,
+                    phone=data.phone,
+                    dni=data.dni,
+                )
+
+                user_id = user.id
+
+            ok = self._repo.assign_branch_role(
+                user_id=user_id,
+                branch_id=branch_id,
+                role_code=data.role_code
             )
 
-        if not ok:
-            raise HTTPException(
-                status_code=409,
-                detail="El usuario ya tiene una asignación en esta sucursal"
+            if ok is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Rol '{data.role_code}' no encontrado"
+                )
+
+            if not ok:
+                raise HTTPException(
+                    status_code=409,
+                    detail="El usuario ya tiene una asignación en esta sucursal"
+                )
+
+            membership = self._repo.get_active_membership(
+                user_id,
+                branch_id
             )
 
-        # Obtener la membresía con el rol asignado
-        membership = self._repo.get_active_membership(
-            user_id,
-            branch_id
-        )
+            if not membership:
+                raise HTTPException(
+                    status_code=500,
+                    detail="No se pudo obtener la asignación del usuario"
+                )
 
-        if not membership:
-            raise HTTPException(
-                status_code=500,
-                detail="No se pudo obtener la asignación del usuario"
+            entity = self._repo.get_by_id_in_branch(
+                user_id=user_id,
+                branch_id=branch_id
             )
 
-        # Recuperar la entidad del usuario
-        entity = self._repo.get_by_id(user_id)
+            if not entity:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Usuario no encontrado en la sucursal"
+                )
 
-        if not entity:
+            return _to_response(entity)
+
+        else:
             raise HTTPException(
-                status_code=404,
-                detail="Usuario no encontrado"
+                status_code=403,
+                detail="Contexto no válido"
             )
-
-        # Incorporar el rol de la sucursal a la entidad
-        entity.role_code = membership.role_code
-        entity.role_name = membership.role_name
-
-        return _to_response(entity)
-
 
 # =========================================================
 # CONSULTA DE USUARIOS
@@ -218,9 +278,12 @@ class ListUsersUseCase:
                 )
 
             branch_id = UUID(str(branch_id))
+            
+            
 
             items = [
                 _to_response(e)
+               
                 for e in self._repo.get_all_by_branch(
                     branch_id=branch_id,
                     skip=skip,
@@ -712,3 +775,59 @@ class SetBranchUserStatusUseCase:
             "branch_id": branch_id,
             "is_active": data.is_active
         }
+    
+class SearchUsersForBranchUseCase:
+    def __init__(self, repo: UserRepository):
+        self._repo = repo
+
+    def execute(
+        self,
+        query: str,
+        actor: dict,
+        branch_id: Optional[UUID] = None
+    ) -> list[UserSearchResponse]:
+
+        scope = actor.get("scope")
+        role_code = actor.get("role_code")
+
+        # Super Admin: puede buscar para cualquier sucursal
+        if scope == "platform" and role_code == "super_admin":
+            if not branch_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Debe indicar la sucursal de destino"
+                )
+
+        # Admin: solo puede buscar para su sucursal activa
+        elif scope == "branch" and role_code == "admin":
+            actor_branch_id = actor.get("branch_id")
+
+            if not actor_branch_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="No se encontró la sucursal activa"
+                )
+
+            branch_id = UUID(str(actor_branch_id))
+
+        else:
+            raise HTTPException(
+                status_code=403,
+                detail="No tienes permisos para buscar usuarios"
+            )
+
+        users = self._repo.search_assignable_users(
+            query=query,
+            branch_id=branch_id,
+            limit=10
+        )
+
+        return [
+            UserSearchResponse(
+                id=user.id,
+                email=user.email,
+                first_name=user.first_name,
+                last_name=user.last_name
+            )
+            for user in users
+        ]

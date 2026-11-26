@@ -34,6 +34,12 @@ class LoginUseCase:
         if not user or not verify_password(data.password, user.password):
             raise _INVALID
 
+        if user.is_deleted:
+            raise HTTPException(
+                status_code=403,
+                detail="La cuenta está eliminada"
+            )
+        
         if not user.is_active:
             raise _INACTIVE
 
@@ -55,7 +61,9 @@ class LoginUseCase:
         if not memberships:
             raise HTTPException(
                 status_code=403,
-                detail="El usuario no tiene sucursales asignadas"
+                detail="No tienes ninguna sucursal disponible para ingresar. "
+            "Verifica que tu asignación, sucursal y empresa estén activas "
+            "o contacta al administrador."
             )
 
         # Convertir membresías a respuesta

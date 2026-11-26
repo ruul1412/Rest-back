@@ -55,7 +55,7 @@ class UpdateBranchUseCase:
     def __init__(self, repo: BranchRepository): self._repo = repo
 
     def execute(self, branch_id: UUID, request: BranchUpdateRequest) -> BranchResponse:
-        branch = self._repo.update(branch_id, name=request.name, description=request.description, phone=request.phone, address=request.address)
+        branch = self._repo.update(branch_id, name=request.name, description=request.description, phone=request.phone,is_active= request.is_active, address=request.address)
         if not branch:
             raise HTTPException(status_code=404, detail="Sucursal no encontrada")
         return _resp(branch)

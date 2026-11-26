@@ -21,7 +21,7 @@ class BranchCreateRequest(BaseModel):
     description: Optional[str]
     phone: Optional[str]
     address: Optional[str]
-    is_active: bool
+    is_active: Optional[bool] = None
 
 class BranchUpdateRequest(BranchCreateRequest):
     pass

@@ -1,6 +1,6 @@
 
 from uuid import UUID
-
+from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,7 @@ from app.application.user.user_use_cases import (
     ListUsersUseCase,
     SetBranchUserStatusUseCase,
     SetUserStatusUseCase,
+    SearchUsersForBranchUseCase,
     UpdateBranchRoleUseCase,
     UpdateUserUseCase,
 )
@@ -27,6 +28,7 @@ from app.interfaces.schemas.user_schema import (
     AssignRoleRequest,
     SetBranchUserStatusRequest,
     UpdateBranchRoleRequest,
+    UserSearchResponse,
     UserCreateRequest,
     UserResponse,
     UserStatusRequest,
@@ -84,6 +86,21 @@ def list_users(
         page=page,
         page_size=page_size,
         actor=actor
+    )
+
+
+@route_message("Usuarios encontrados correctamente")
+@router.get("/search", response_model=list[UserSearchResponse])
+def search_users(
+    q: str = Query(..., min_length=2, max_length=100),
+    branch_id: Optional[UUID] = Query(None),
+    repo: UserRepository = Depends(_repo),
+    actor: dict = Depends(require_user_management()),
+):
+    return SearchUsersForBranchUseCase(repo).execute(
+        query=q,
+        actor=actor,
+        branch_id=branch_id
     )
 
 
@@ -294,3 +311,5 @@ def set_branch_user_status(
     except Exception:
         uow.rollback()
         raise
+
+

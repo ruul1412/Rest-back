@@ -19,8 +19,14 @@ class SelectBranchUseCase:
 
     def execute(self, data: SelectBranchRequest) -> TokenResponse:
 
-        # Validar el token temporal
+        # 1. Validar el token temporal
         payload = decode_selection_token(data.selection_token)
+
+        if payload.get("scope") != "branch_selection":
+            raise HTTPException(
+                status_code=401,
+                detail="Token de selección inválido"
+            )
 
         user_id = payload.get("sub")
 
@@ -30,16 +36,22 @@ class SelectBranchUseCase:
                 detail="Token de selección inválido"
             )
 
-        # Verificar que el usuario siga activo
+        # 2. Verificar que el usuario siga activo
         user = self._repo.get_by_id(user_id)
 
-        if not user or not user.is_active:
+        if not user or user.is_deleted:
             raise HTTPException(
                 status_code=403,
-                detail="Usuario inactivo o inexistente"
+                detail="Usuario inexistente o eliminado"
             )
 
-        # Verificar que pertenece a la sucursal elegida
+        if not user.is_active:
+            raise HTTPException(
+                status_code=403,
+                detail="Usuario inactivo"
+            )
+
+        # 3. Verificar acceso a la sucursal
         membership = self._repo.get_active_membership(
             user.id,
             data.branch_id
@@ -48,10 +60,12 @@ class SelectBranchUseCase:
         if not membership:
             raise HTTPException(
                 status_code=403,
-                detail="No tienes acceso a esta sucursal"
+                detail= "No puedes ingresar a esta sucursal. "
+            "Verifica que tu asignación, sucursal y empresa estén activas "
+            "o contacta al administrador."
             )
 
-        # Generar token definitivo
+        # 4. Generar token definitivo
         token = create_access_token({
             "sub": str(user.id),
             "company_id": str(membership.company_id),
@@ -61,3 +75,4 @@ class SelectBranchUseCase:
         })
 
         return TokenResponse(access_token=token)
+    

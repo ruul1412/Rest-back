@@ -1,11 +1,11 @@
 
 from typing import Optional
 from uuid import UUID
-
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.domain.user.branch_user_entity import BranchUserEntity
-from app.domain.user.user_entity import UserEntity
+from app.domain.user.user_entity import UserEntity, BranchAssignmentEntity
 from app.infrastructure.models.branch_model import BranchModel
 from app.infrastructure.models.branch_user_model import BranchUserModel
 from app.infrastructure.models.company_model import CompanyModel
@@ -22,7 +22,6 @@ def _to_entity(model: UserModel) -> UserEntity:
     role_code = None
     role_name = None
 
-    # user_roles es uselist=False → objeto único, no lista
     if model.user_roles and model.user_roles.role:
         role_code = model.user_roles.role.code
         role_name = model.user_roles.role.name
@@ -36,10 +35,68 @@ def _to_entity(model: UserModel) -> UserEntity:
         phone=model.phone,
         dni=model.dni,
         is_active=model.is_active,
+        is_deleted=model.is_deleted,
         role_code=role_code,
         role_name=role_name,
     )
 
+
+def _to_platform_entity(model: UserModel) -> UserEntity:
+    entity = _to_entity(model)
+
+    entity.assignments = [
+        BranchAssignmentEntity(
+            branch_id=membership.branch_id,
+            branch_name=membership.branch.name,
+            company_name=(
+                membership.branch.company.name
+                if membership.branch.company
+                else None
+            ),
+            role_code=(
+                membership.role.code
+                if membership.role
+                else None
+            ),
+            role_name=(
+                membership.role.name
+                if membership.role
+                else None
+            ),
+            is_active=membership.is_active,
+            is_deleted=membership.is_deleted,
+        )
+        for membership in model.branch_users
+    ]
+
+    return entity
+
+
+def _to_branch_entity(
+    model: UserModel,
+    branch_id: UUID
+) -> UserEntity:
+
+    entity = _to_entity(model)
+
+    membership = next(
+        (
+            bu for bu in model.branch_users
+            if bu.branch_id == branch_id
+            and not bu.is_deleted
+        ),
+        None
+    )
+
+    if membership:
+        entity.branch_is_active = membership.is_active
+        entity.branch_is_deleted = membership.is_deleted
+
+        if membership.role:
+            entity.role_code = membership.role.code
+            entity.role_name = membership.role.name
+
+    return entity
 
 # =========================================================
 # USER REPOSITORY
@@ -62,28 +119,6 @@ class UserRepository:
                 .joinedload(UserRoleModel.role)
             )
         )
-
-    def _to_branch_entity(
-        self,
-        model: UserModel,
-        branch_id: UUID
-    ) -> UserEntity:
-
-        entity = _to_entity(model)
-
-        membership = next(
-            (
-                bu for bu in model.branch_users
-                if bu.branch_id == branch_id and bu.is_active
-            ),
-            None
-        )
-
-        if membership and membership.role:
-            entity.role_code = membership.role.code
-            entity.role_name = membership.role.name
-
-        return entity
 
     # -----------------------------------------------------
     # CONSULTAS DE USUARIOS
@@ -125,8 +160,9 @@ class UserRepository:
             )
             .filter(
                 UserModel.id == user_id,
+                UserModel.is_deleted.is_(False),
                 BranchUserModel.branch_id == branch_id,
-                BranchUserModel.is_active.is_(True)
+                BranchUserModel.is_deleted.is_(False)
             )
             .first()
         )
@@ -134,11 +170,12 @@ class UserRepository:
         if not model:
             return None
 
-        return self._to_branch_entity(model, branch_id)
+        return _to_branch_entity(model, branch_id)
 
     def count(self) -> int:
         return self._db.query(UserModel.id).count()
 
+   
     def get_all(
         self,
         skip: int = 0,
@@ -147,13 +184,24 @@ class UserRepository:
 
         models = (
             self._base_query()
+            .options(
+                joinedload(UserModel.branch_users)
+                .joinedload(BranchUserModel.branch)
+                .joinedload(BranchModel.company),
+
+                joinedload(UserModel.branch_users)
+                .joinedload(BranchUserModel.role)
+            )
             .order_by(UserModel.created_at.desc())
             .offset(skip)
             .limit(limit)
             .all()
         )
 
-        return [_to_entity(m) for m in models]
+        return [
+            _to_platform_entity(model)
+            for model in models
+        ]
 
     def email_exists(self, email: str) -> bool:
         return (
@@ -229,8 +277,11 @@ class UserRepository:
             )
             .filter(
                 UserModel.id == user_id,
+                UserModel.is_active.is_(True),
+                UserModel.is_deleted.is_(False),
                 BranchUserModel.branch_id == branch_id,
-                BranchUserModel.is_active.is_(True)
+                BranchUserModel.is_active.is_(True),
+                BranchUserModel.is_deleted.is_(False)
             )
             .first()
         )
@@ -245,7 +296,7 @@ class UserRepository:
         self._db.flush()
         self._db.refresh(model)
 
-        return self._to_branch_entity(model, branch_id)
+        return _to_branch_entity(model, branch_id)
 
     # -----------------------------------------------------
     # ESTADO GLOBAL DEL USUARIO
@@ -269,6 +320,21 @@ class UserRepository:
 
         return True
 
+    def get_assignable_branch(
+            self,
+            branch_id: UUID
+        ) -> Optional[BranchModel]:
+
+            return (
+                self._db.query(BranchModel)
+                .join(BranchModel.company)
+                .filter(
+                    BranchModel.id == branch_id,
+                    CompanyModel.is_active.is_(True)
+                )
+                .first()
+            )
+    
     def set_active(
         self,
         user_id: UUID,
@@ -359,30 +425,65 @@ class UserRepository:
         role_code: str
     ) -> Optional[bool]:
 
-        # Evitar duplicar o modificar una asignación existente
-        existing = (
-            self._db.query(BranchUserModel)
-            .filter_by(
-                user_id=user_id,
-                branch_id=branch_id
+        # Verificar que el usuario exista y esté activo
+        user = (
+            self._db.query(UserModel)
+            .filter(
+                UserModel.id == user_id,
+                UserModel.is_active.is_(True),
+                UserModel.is_deleted.is_(False)
             )
             .first()
         )
 
-        if existing:
+        if not user:
             return False
 
-        # Buscar el rol solicitado
+        # No permitir roles globales como roles de sucursal
+        if role_code == "super_admin":
+            return False
+
+        # Buscar el rol operativo
         role = (
             self._db.query(RoleModel)
-            .filter(RoleModel.code == role_code)
+            .filter(
+                RoleModel.code == role_code,
+                RoleModel.is_deleted.is_(False)
+            )
             .first()
         )
 
         if not role:
             return None
 
-        # Crear una nueva asignación
+        # Buscar una asignación existente, incluso si fue eliminada
+        membership = (
+            self._db.query(BranchUserModel)
+            .filter(
+                BranchUserModel.user_id == user_id,
+                BranchUserModel.branch_id == branch_id
+            )
+            .first()
+        )
+
+        if membership:
+            # No duplicar una asignación que ya está activa
+            if (
+                membership.is_active
+                and not membership.is_deleted
+            ):
+                return False
+
+            # Recuperar y reactivar la asignación
+            membership.role_id = role.id
+            membership.is_deleted = False
+            membership.is_active = True
+
+            self._db.flush()
+
+            return True
+
+        # Crear una asignación nueva
         membership = BranchUserModel(
             user_id=user_id,
             branch_id=branch_id,
@@ -395,7 +496,7 @@ class UserRepository:
         self._db.flush()
 
         return True
-
+    
     def update_branch_role(
         self,
         user_id: UUID,
@@ -403,13 +504,26 @@ class UserRepository:
         role_code: str
     ) -> Optional[bool]:
 
-        # Buscar la asignación activa del usuario en esa sucursal
+        user = (
+            self._db.query(UserModel)
+            .filter(
+                UserModel.id == user_id,
+                UserModel.is_active.is_(True),
+                UserModel.is_deleted.is_(False)
+            )
+            .first()
+        )
+
+        if not user:
+            return False
+
         membership = (
             self._db.query(BranchUserModel)
             .filter(
                 BranchUserModel.user_id == user_id,
                 BranchUserModel.branch_id == branch_id,
-                BranchUserModel.is_active.is_(True)
+                BranchUserModel.is_active.is_(True),
+                BranchUserModel.is_deleted.is_(False)
             )
             .first()
         )
@@ -417,23 +531,27 @@ class UserRepository:
         if not membership:
             return False
 
-        # Buscar el nuevo rol
+        if role_code == "super_admin":
+            return False
+
         role = (
             self._db.query(RoleModel)
-            .filter(RoleModel.code == role_code)
+            .filter(
+                RoleModel.code == role_code,
+                RoleModel.is_deleted.is_(False)
+            )
             .first()
         )
 
         if not role:
             return None
 
-        # Actualizar solamente el rol de esta sucursal
         membership.role_id = role.id
 
         self._db.flush()
 
         return True
-
+   
     def set_branch_active(
         self,
         user_id: UUID,
@@ -445,7 +563,8 @@ class UserRepository:
             self._db.query(BranchUserModel)
             .filter(
                 BranchUserModel.user_id == user_id,
-                BranchUserModel.branch_id == branch_id
+                BranchUserModel.branch_id == branch_id,
+                BranchUserModel.is_deleted.is_(False)
             )
             .first()
         )
@@ -453,12 +572,27 @@ class UserRepository:
         if not membership:
             return False
 
+        # No permitir reactivar una asignación
+        # si la cuenta global está inactiva o eliminada
+        if is_active:
+            user = (
+                self._db.query(UserModel)
+                .filter(
+                    UserModel.id == user_id,
+                    UserModel.is_active.is_(True),
+                    UserModel.is_deleted.is_(False)
+                )
+                .first()
+            )
+
+            if not user:
+                return False
+
         membership.is_active = is_active
 
         self._db.flush()
 
         return True
-
     # -----------------------------------------------------
     # CONSULTAS DE MEMBRESÍAS Y SUCURSALES
     # -----------------------------------------------------
@@ -475,7 +609,16 @@ class UserRepository:
             .join(BranchUserModel.role)
             .filter(
                 BranchUserModel.user_id == user_id,
-                BranchUserModel.is_active == True
+                BranchUserModel.is_active.is_(True),
+                BranchUserModel.is_deleted.is_(False),
+
+                BranchModel.is_active.is_(True),
+                BranchModel.is_deleted.is_(False),
+
+                CompanyModel.is_active.is_(True),
+                CompanyModel.is_deleted.is_(False),
+
+                RoleModel.is_deleted.is_(False),
             )
             .order_by(
                 BranchUserModel.is_default.desc(),
@@ -487,17 +630,17 @@ class UserRepository:
 
         return [
             BranchUserEntity(
-                user_id=membership.user_id,
-                branch_id=membership.branch_id,
-                branch_name=membership.branch.name,
-                company_id=membership.branch.company.id,
-                company_name=membership.branch.company.name,
-                role_id=membership.role_id,
-                role_code=membership.role.code,
-                role_name=membership.role.name,
-                is_default=membership.is_default
+                user_id=m.user_id,
+                branch_id=m.branch_id,
+                branch_name=m.branch.name,
+                company_id=m.branch.company.id,
+                company_name=m.branch.company.name,
+                role_id=m.role_id,
+                role_code=m.role.code,
+                role_name=m.role.name,
+                is_default=m.is_default
             )
-            for membership in memberships
+            for m in memberships
         ]
 
     def get_active_membership(
@@ -514,7 +657,16 @@ class UserRepository:
             .filter(
                 BranchUserModel.user_id == user_id,
                 BranchUserModel.branch_id == branch_id,
-                BranchUserModel.is_active.is_(True)
+                BranchUserModel.is_active.is_(True),
+                BranchUserModel.is_deleted.is_(False),
+
+                BranchModel.is_active.is_(True),
+                BranchModel.is_deleted.is_(False),
+
+                CompanyModel.is_active.is_(True),
+                CompanyModel.is_deleted.is_(False),
+
+                RoleModel.is_deleted.is_(False),
             )
             .first()
         )
@@ -533,22 +685,7 @@ class UserRepository:
             role_name=membership.role.name,
             is_default=membership.is_default
         )
-
-    def get_assignable_branch(
-        self,
-        branch_id: UUID
-    ) -> Optional[BranchModel]:
-
-        return (
-            self._db.query(BranchModel)
-            .join(BranchModel.company)
-            .filter(
-                BranchModel.id == branch_id,
-                CompanyModel.is_active.is_(True)
-            )
-            .first()
-        )
-
+    
     # -----------------------------------------------------
     # LISTADOS Y CONTEOS POR SUCURSAL
     # -----------------------------------------------------
@@ -557,61 +694,115 @@ class UserRepository:
         self,
         branch_id: UUID,
         skip: int = 0,
-        limit: int = 50
+        limit: int = 10
     ) -> list[UserEntity]:
 
-        models = (
+        query = (
             self._base_query()
+            .join(UserModel.branch_users)
             .options(
                 joinedload(UserModel.branch_users)
                 .joinedload(BranchUserModel.role)
             )
-            .join(
-                BranchUserModel,
-                BranchUserModel.user_id == UserModel.id
-            )
             .filter(
+                UserModel.is_deleted.is_(False),
                 BranchUserModel.branch_id == branch_id,
-                BranchUserModel.is_active.is_(True)
+                BranchUserModel.is_deleted.is_(False),
             )
-            .order_by(UserModel.created_at.desc())
+            .distinct()
             .offset(skip)
             .limit(limit)
-            .all()
         )
 
-        entities = []
+        users = query.all()
 
-        for model in models:
-            entity = _to_entity(model)
-
-            membership = next(
-                (
-                    bu for bu in model.branch_users
-                    if bu.branch_id == branch_id and bu.is_active
-                ),
-                None
-            )
-
-            if membership and membership.role:
-                entity.role_code = membership.role.code
-                entity.role_name = membership.role.name
-
-            entities.append(entity)
-
-        return entities
-
+        return [
+            _to_branch_entity(user, branch_id)
+            for user in users
+        ]
+    
     def count_by_branch(self, branch_id: UUID) -> int:
 
         return (
             self._db.query(UserModel.id)
-            .join(
-                BranchUserModel,
-                BranchUserModel.user_id == UserModel.id
-            )
+            .join(UserModel.branch_users)
             .filter(
+                UserModel.is_deleted.is_(False),
                 BranchUserModel.branch_id == branch_id,
-                BranchUserModel.is_active.is_(True)
+                BranchUserModel.is_deleted.is_(False),
             )
+            .distinct()
             .count()
         )
+
+    def search_assignable_users(
+        self,
+        query: str,
+        branch_id: UUID,
+        limit: int = 10
+    ) -> list[UserEntity]:
+
+        term = f"%{query.strip()}%"
+
+        # Obtener la empresa de la sucursal destino
+        branch = (
+            self._db.query(BranchModel)
+            .filter(BranchModel.id == branch_id)
+            .first()
+        )
+
+        if not branch:
+            return []
+
+        company_id = branch.company_id
+
+        users = (
+            self._base_query()
+            .filter(
+                UserModel.is_active.is_(True),
+                UserModel.is_deleted.is_(False),
+
+                or_(
+                    UserModel.email.ilike(term),
+                    UserModel.first_name.ilike(term),
+                    UserModel.last_name.ilike(term),
+                ),
+
+                # Excluir cuentas super_admin
+                ~UserModel.user_roles.has(
+                    UserRoleModel.role.has(
+                        RoleModel.code == "super_admin"
+                    )
+                ),
+
+                # Excluir usuarios ya asignados a esta sucursal
+                ~UserModel.branch_users.any(
+                    and_(
+                        BranchUserModel.branch_id == branch_id,
+                        BranchUserModel.is_deleted.is_(False)
+                    )
+                ),
+
+                # Excluir usuarios que pertenezcan a otra empresa
+                ~UserModel.branch_users.any(
+                    and_(
+                        BranchUserModel.is_deleted.is_(False),
+                        BranchUserModel.branch.has(
+                            BranchModel.company_id != company_id
+                        )
+                    )
+                )
+            )
+            .order_by(
+                UserModel.first_name.asc(),
+                UserModel.last_name.asc()
+            )
+            .limit(limit)
+            .all()
+        )
+
+        return [
+            _to_entity(user)
+            for user in users
+        ]
+    

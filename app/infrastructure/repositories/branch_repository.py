@@ -57,15 +57,35 @@ class BranchRepository:
         self._db.refresh(m)
         return _to_entity(m)
 
-    def update(self, branch_id: UUID, name: Optional[str], description: Optional[str], phone: Optional[str], address: str) -> Optional[BranchEntity]:
-        m = self._db.query(BranchModel).filter(BranchModel.id==branch_id).first()
+    def update(
+        self,
+        branch_id: UUID,
+        name: Optional[str],
+        description: Optional[str],
+        phone: Optional[str],
+        address: Optional[str],
+        is_active: Optional[bool] = None,
+    ) -> Optional[BranchEntity]:
+
+        m = (
+            self._db.query(BranchModel)
+            .filter(BranchModel.id == branch_id)
+            .first()
+        )
+
         if not m:
             return None
+
         m.name = name
         m.description = description
         m.phone = phone
         m.address = address
+
+        if is_active is not None:
+            m.is_active = is_active
+
         self._db.flush()
+
         return _to_entity(m)
 
     def updateStatus(self, branch_id: UUID, is_active: bool) -> Optional[BranchEntity]:
