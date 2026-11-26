@@ -14,3 +14,5 @@ __pycache__/
 # Configuración de IDE
 .vscode/
 .idea/
+.neon
+node_modules/

@@ -9,3 +9,4 @@ python-jose
 alembic
 email-validator
 tzdata
+psycopg[binary]
