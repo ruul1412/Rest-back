@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, Date
+from sqlalchemy import Column, String, Boolean, Date,ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -13,6 +13,9 @@ class MenuDayModel(Base, AuditableBase):
     date  = Column(Date,    nullable=False, unique=True)
     is_active  = Column(Boolean, nullable=False, default=True, server_default="true")
     notes  = Column(String,  nullable=True)   # ej: "feriado, menú reducido"
+
+    branch_id = Column( UUID(as_uuid=True),ForeignKey("branches.id"), primary_key=True)
+    branch = relationship("BranchModel", back_populates="branch_menu_day")
 
     slots = relationship(
         "MenuDaySlotModel",

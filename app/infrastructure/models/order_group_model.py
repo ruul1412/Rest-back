@@ -19,6 +19,9 @@ class OrderGroupModel(Base, AuditableBase):
     notes_group    = Column(String, nullable=True)
     closed_at      = Column(DateTime(timezone=True), nullable=True)  # se setea al cerrar/cancelar
 
+    branch_id = Column( UUID(as_uuid=True),ForeignKey("branches.id"), primary_key=True)
+    branch = relationship("BranchModel", back_populates="branch_order_groups")
+
     # Relaciones
     user    = relationship("UserModel",    back_populates="order_groups")
     table   = relationship("TableModel",   back_populates="order_groups")

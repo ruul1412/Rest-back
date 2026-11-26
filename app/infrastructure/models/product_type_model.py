@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean
+from sqlalchemy import Column, String, Boolean, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -31,3 +31,5 @@ class ProductTypeModel(Base, AuditableBase):
     deducts_stock  = Column(Boolean, nullable=False, default=False, server_default="false")
 
     products = relationship("ProductModel", back_populates="product_type")
+    branch_id = Column( UUID(as_uuid=True),ForeignKey("branches.id"), primary_key=True)
+    branch = relationship("BranchModel", back_populates="branch_product_types")

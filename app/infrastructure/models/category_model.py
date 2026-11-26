@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String
+from sqlalchemy import Column, String,ForeignKey
 from app.core.database import Base
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
@@ -12,3 +12,6 @@ class CategoryModel(Base, AuditableBase):
     name = Column(String, nullable=False)
  
     products = relationship("ProductModel", back_populates="category")
+
+    branch_id = Column( UUID(as_uuid=True),ForeignKey("branches.id"), primary_key=True)
+    branch = relationship("BranchModel", back_populates="branch_categories")
